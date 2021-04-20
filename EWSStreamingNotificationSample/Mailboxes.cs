@@ -26,13 +26,15 @@ namespace EWSStreamingNotificationSample
 
         private Dictionary<string, MailboxInfo> _mailboxes;  // Stores information for each mailbox, as returned by autodiscover
         private AutodiscoverService _autodiscover;
+        private Auth.CredentialHandler _credentialHandler;
         private ClassLogger _logger;
         private bool _useGrouping = true;
         
 
-        public Mailboxes(WebCredentials AutodiscoverCredentials, ClassLogger Logger, ITraceListener TraceListener = null)
+        public Mailboxes(ClassLogger Logger, ITraceListener TraceListener = null, Auth.CredentialHandler CredentialHandler = null)
         {
             _logger = Logger;
+            _credentialHandler = CredentialHandler;
             _mailboxes = new Dictionary<string, MailboxInfo>();
             _autodiscover = new AutodiscoverService(ExchangeVersion.Exchange2013);  // Minimum version we need is 2013
             _autodiscover.RedirectionUrlValidationCallback = RedirectionCallback;
@@ -42,8 +44,11 @@ namespace EWSStreamingNotificationSample
                 _autodiscover.TraceFlags = TraceFlags.All;
                 _autodiscover.TraceEnabled = true;
             }
-            if (!(AutodiscoverCredentials==null))
-                _autodiscover.Credentials=AutodiscoverCredentials;
+            if (CredentialHandler != null)
+            {
+                _credentialHandler = CredentialHandler;
+                _credentialHandler.ApplyCredentialsToAutodiscoverService(_autodiscover);
+            }
         }
 
         static bool RedirectionCallback(string url)
@@ -51,10 +56,15 @@ namespace EWSStreamingNotificationSample
             return url.ToLower().StartsWith("https://");
         }
 
-        public WebCredentials Credentials
+        public Auth.CredentialHandler CredentialHandler
         {
-            set { _autodiscover.Credentials = value; }
+            get { return _credentialHandler; }
+            set {
+                _credentialHandler = value;
+                _credentialHandler.ApplyCredentialsToAutodiscoverService(_autodiscover);
+            }
         }
+
 
         public List<string> AllMailboxes
         {
@@ -78,9 +88,7 @@ namespace EWSStreamingNotificationSample
             {
                 // We already have autodiscover information for this mailbox, if it is recent enough we don't bother retrieving it again
                 if (_mailboxes[SMTPAddress].IsStale)
-                {
                     _mailboxes.Remove(SMTPAddress);
-                }
                 else
                     return true;
             }
@@ -128,7 +136,8 @@ namespace EWSStreamingNotificationSample
 
             Uri url = null;
             GetUserSettingsResponse response = null;
-            
+            if (!_credentialHandler.ApplyCredentialsToAutodiscoverService(_autodiscover))
+                throw new Exception("Failed to apply credentials to Autodiscover service");
 
             for (int attempt = 0; attempt < 10; attempt++)
             {

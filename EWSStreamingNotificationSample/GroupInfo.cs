@@ -24,13 +24,15 @@ namespace EWSStreamingNotificationSample
         private string _name = "";
         private string _primaryMailbox = "";
         private List<String> _mailboxes;
+        private string _xBackendOverrideCookie = "";
         //private List<StreamingSubscriptionConnection> _streamingConnection;
         private ExchangeService _exchangeService = null;
         private ITraceListener _traceListener = null;
         private string _ewsUrl = "";
-        private ExchangeVersion _exchangeVersion = ExchangeVersion.Exchange2013;
+        private ExchangeVersion _exchangeVersion = ExchangeVersion.Exchange2016;
+        private Auth.CredentialHandler _credentialHandler;
 
-        public GroupInfo(string Name, string PrimaryMailbox, string EWSUrl, ITraceListener TraceListener = null)
+        public GroupInfo(string Name, string PrimaryMailbox, string EWSUrl, Auth.CredentialHandler credentialHandler, ITraceListener TraceListener = null)
         {
             // initialise the group information
             _name = Name;
@@ -39,6 +41,7 @@ namespace EWSStreamingNotificationSample
             _traceListener = TraceListener;
             _mailboxes = new List<String>();
             _mailboxes.Add(PrimaryMailbox);
+            _credentialHandler = credentialHandler;
         }
 
         public string Name
@@ -64,6 +67,10 @@ namespace EWSStreamingNotificationSample
             }
         }
 
+        public void ApplyHeadersToConnection(StreamingSubscriptionConnection connection)
+        {
+        }
+
         public ExchangeService ExchangeService
         {
             get
@@ -72,18 +79,21 @@ namespace EWSStreamingNotificationSample
                     return _exchangeService;
 
                 // Create exchange service for this group
-                ExchangeService exchange = new ExchangeService(_exchangeVersion);
-                exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, _primaryMailbox);
-                exchange.HttpHeaders.Add("X-AnchorMailbox", _primaryMailbox);
-                exchange.HttpHeaders.Add("X-PreferServerAffinity", "true");
-                exchange.Url = new Uri(_ewsUrl);
+                _exchangeService = new ExchangeService(_exchangeVersion);
+                _credentialHandler.ApplyCredentialsToExchangeService(_exchangeService);
+                _exchangeService.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, _primaryMailbox);
+
+                _exchangeService.HttpHeaders.Add("X-AnchorMailbox", _primaryMailbox);
+                _exchangeService.HttpHeaders.Add("X-PreferServerAffinity", "true");
+
+                _exchangeService.Url = new Uri(_ewsUrl);
                 if (_traceListener != null)
                 {
-                    exchange.TraceListener = _traceListener;
-                    exchange.TraceFlags = TraceFlags.All;
-                    exchange.TraceEnabled = true;
+                    _exchangeService.TraceListener = _traceListener;
+                    _exchangeService.TraceFlags = TraceFlags.All;
+                    _exchangeService.TraceEnabled = true;
                 }
-                return exchange;
+                return _exchangeService;
             }
         }
 
@@ -114,6 +124,8 @@ namespace EWSStreamingNotificationSample
             get
             {
                 // Return a list of lists (the group split into lists of 200)
+                // This isn't implemented, and would need completion for applications that subscribe to
+                // large numbers of mailboxes
                 List<List<String>> groupedMailboxes = new List<List<String>>();
                 for (int i=0; i<NumberOfGroups; i++)
                 {
@@ -122,6 +134,96 @@ namespace EWSStreamingNotificationSample
                 }
                 return groupedMailboxes;
             }
+        }
+
+        private StreamingSubscription AddSubscription(string Mailbox,
+            ref Dictionary<string, StreamingSubscription> SubscriptionList, EventType[] SubscribeEvents, ExchangeService exchange = null)
+        {
+            // Return the subscription, or create a new one if we don't already have one
+
+            if (SubscriptionList.ContainsKey(Mailbox))
+                SubscriptionList.Remove(Mailbox);
+
+            if (exchange==null)
+                exchange = ExchangeService;
+            exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox);
+
+            //FolderId[] selectedFolders = SelectedFolders();
+            StreamingSubscription subscription = exchange.SubscribeToStreamingNotificationsOnAllFolders(SubscribeEvents);
+                //subscription = exchange.SubscribeToStreamingNotifications(SelectedFolders(), SelectedEvents());
+            SubscriptionList.Add(Mailbox, subscription);
+
+
+            if (_primaryMailbox.Equals(Mailbox))
+            {
+                // Check for the X-BackendOverride cookie
+                // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
+                System.Net.CookieCollection cookies = exchange.CookieContainer.GetCookies(new Uri("https://outlook.office365.com"));
+                _xBackendOverrideCookie = $"X-BackEndOverrideCookie={cookies["X-BackEndOverrideCookie"].Value}";
+            }
+            return subscription;
+        }
+
+        public StreamingSubscriptionConnection AddGroupSubscriptions(
+            ref Dictionary<string, StreamingSubscriptionConnection> Connections,
+            ref Dictionary<string, StreamingSubscription> SubscriptionList,
+            EventType[] SubscribeEvents,
+            ClassLogger Logger,
+            int TimeOut = 30)
+        {
+            if (Connections.ContainsKey(_name))
+            {
+                foreach (StreamingSubscription subscription in Connections[_name].CurrentSubscriptions)
+                {
+                    try
+                    {
+                        subscription.Unsubscribe();
+                    }
+                    catch { }
+                }
+                try
+                {
+                    Connections[_name].Close();
+                }
+                catch { }
+                Connections.Remove(_name);
+            }
+
+            StreamingSubscriptionConnection groupConnection = null;
+            try
+            {
+                // Create the subscription to the primary mailbox, then create the subscription connection
+                StreamingSubscription subscription = AddSubscription(_primaryMailbox, ref SubscriptionList, SubscribeEvents);
+                groupConnection = new StreamingSubscriptionConnection(subscription.Service, TimeOut);
+                Connections.Add(_name, groupConnection);
+
+                //SubscribeConnectionEvents(groupConnection);
+                groupConnection.AddSubscription(subscription);
+                Logger.Log($"{_primaryMailbox} (primary mailbox) subscription created in group {_name}");
+
+                // Now add any further subscriptions in this group
+                foreach (string sMailbox in _mailboxes)
+                {
+                    if (!sMailbox.Equals(_primaryMailbox))
+                    {
+                        try
+                        {
+                            subscription = AddSubscription(sMailbox, ref SubscriptionList,SubscribeEvents);
+                            groupConnection.AddSubscription(subscription);
+                            Logger.Log($"{sMailbox} subscription created in group {_name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(String.Format("ERROR when subscribing {0} in group {1}: {2}", sMailbox, _name, ex.Message));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log($"ERROR when creating subscription connection group {_name}: {ex.Message}");
+            }
+            return groupConnection;
         }
     }
 }

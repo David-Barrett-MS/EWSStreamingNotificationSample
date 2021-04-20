@@ -56,10 +56,6 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.Exchange.WebServices, Version=15.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files\Microsoft\Exchange\Web Services\2.2\Microsoft.Exchange.WebServices.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.DirectoryServices" />
@@ -73,6 +69,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Auth\CredentialHandler.cs" />
+    <Compile Include="Auth\FormChooseAuthCertificate.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Auth\FormChooseAuthCertificate.Designer.cs">
+      <DependentUpon>FormChooseAuthCertificate.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Auth\OAuthHelper.cs" />
     <Compile Include="ClassLogger.cs" />
     <Compile Include="FormEditMailboxes.cs">
       <SubType>Form</SubType>
@@ -92,6 +96,9 @@
     <Compile Include="MailboxInfo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="Auth\FormChooseAuthCertificate.resx">
+      <DependentUpon>FormChooseAuthCertificate.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="FormEditMailboxes.resx">
       <DependentUpon>FormEditMailboxes.cs</DependentUpon>
     </EmbeddedResource>
@@ -143,6 +150,14 @@
       <ProductName>Windows Installer 3.1</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Exchange.WebServices.Managed.Api">
+      <Version>2.2.1.2</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Identity.Client">
+      <Version>4.29.0</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

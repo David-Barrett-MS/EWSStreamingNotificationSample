@@ -46,6 +46,8 @@ namespace EWSStreamingNotificationSample
         Mailboxes _mailboxes = null;
         private bool _reconnect = false;
         private Object _reconnectLock = new Object();
+        private Auth.CredentialHandler _credentialHandler = null;
+        private Dictionary<String, String> _subscriptionIdToMailboxMapping = null;
 
         public FormMain()
         {
@@ -62,27 +64,16 @@ namespace EWSStreamingNotificationSample
             _logger.Log("Default connection limit increased to 255");
 
             comboBoxSubscribeTo.SelectedIndex = 5; // Set to Inbox first of all
-            checkedListBoxEvents.SetItemChecked(0, true);
             buttonUnsubscribe.Enabled = false;
+            checkBoxSelectAll.CheckState = CheckState.Checked;
+            checkBoxSelectAll_CheckedChanged(this, null);
 
             _connections = new Dictionary<string, StreamingSubscriptionConnection>();
             ReadMailboxes();
 
-            _mailboxes = new Mailboxes(null, _logger, _traceListener);
+            _mailboxes = new Mailboxes(_logger, _traceListener);
 
-            comboBoxExchangeVersion.SelectedIndex = 0;
-            //comboBoxExchangeVersion.Enabled = false;
             UpdateUriUI();
-        }
-
-        private WebCredentials Credentials
-        {
-            get
-            {
-                if (!String.IsNullOrEmpty(textBoxDomain.Text))
-                    return new WebCredentials(textBoxUsername.Text, textBoxPassword.Text, textBoxDomain.Text);
-                return new WebCredentials(textBoxUsername.Text, textBoxPassword.Text);
-            }
         }
 
         private void ReadMailboxes(string MailboxFile="")
@@ -107,10 +98,24 @@ namespace EWSStreamingNotificationSample
                     {
                         textBoxPassword.Text = sMailbox.Substring(9);
                     }
+                    else if (sMailbox.ToLower().StartsWith("tenantid="))
+                    {
+                        textBoxTenantId.Text = sMailbox.Substring(9);
+                    }
+                    else if (sMailbox.ToLower().StartsWith("appid="))
+                    {
+                        textBoxApplicationId.Text = sMailbox.Substring(6);
+                    }
+                    else if (sMailbox.ToLower().StartsWith("secret="))
+                    {
+                        textBoxClientSecret.Text = sMailbox.Substring(7);
+                        radioButtonAuthOAuth.Checked = true;
+                    }
                     else
                         checkedListBoxMailboxes.Items.Add(sMailbox);
                 }
             }
+            buttonSelectAllMailboxes_Click(this, null);
         }
 
         void _logger_LogAdded(object sender, LoggerEventArgs a)
@@ -138,14 +143,27 @@ namespace EWSStreamingNotificationSample
             }
         }
 
+        private ExchangeService ExchangeServiceForMailboxAccess(MailboxInfo Mailbox)
+        {
+            ExchangeService mailboxAccessService = new ExchangeService(ExchangeVersion.Exchange2016);
+            CredentialHandler().ApplyCredentialsToExchangeService(mailboxAccessService);
+            mailboxAccessService.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox.SMTPAddress);
+            mailboxAccessService.HttpHeaders.Add("X-AnchorMailbox", Mailbox.SMTPAddress);
+            mailboxAccessService.Url = new Uri(Mailbox.EwsUrl);
+            mailboxAccessService.TraceListener = _traceListener;
+            mailboxAccessService.TraceFlags = TraceFlags.All;
+            mailboxAccessService.TraceEnabled = true;
+            return mailboxAccessService;
+        }
+
         void ProcessNotification(object e, StreamingSubscription Subscription)
         {
             // We have received a notification
 
-            string sMailbox = Subscription.Service.ImpersonatedUserId.Id;
+            string sMailbox = "Unknown mailbox"; 
+            if (_subscriptionIdToMailboxMapping.ContainsKey(Subscription.Id))
+                sMailbox = _subscriptionIdToMailboxMapping[Subscription.Id];
 
-            if (String.IsNullOrEmpty(sMailbox))
-                sMailbox = "Unknown mailbox";
             string sEvent = sMailbox + ": ";
 
             if (e is ItemEvent)
@@ -199,14 +217,7 @@ namespace EWSStreamingNotificationSample
 
             NotificationInfo n = (NotificationInfo)e;
 
-            ExchangeService ewsMoreInfoService = new ExchangeService(n.Service.RequestedServerVersion);
-            ewsMoreInfoService.Credentials = this.Credentials;
-            ewsMoreInfoService.UseDefaultCredentials = false;
-            ewsMoreInfoService.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, n.Mailbox);
-            ewsMoreInfoService.Url = n.Service.Url;
-            ewsMoreInfoService.TraceListener = _traceListener;
-            ewsMoreInfoService.TraceFlags = TraceFlags.All;
-            ewsMoreInfoService.TraceEnabled = true;
+            ExchangeService ewsMoreInfoService = ExchangeServiceForMailboxAccess(_mailboxes.Mailbox(n.Mailbox));
 
             string sEvent = "";
             if (n.Event is ItemEvent)
@@ -269,7 +280,8 @@ namespace EWSStreamingNotificationSample
 
             try
             {
-                oItem = Item.Bind(service, itemId, oPropertySet);
+                ItemId cleanItemId = new ItemId(itemId.UniqueId);
+                oItem = Item.Bind(service, cleanItemId, oPropertySet);
             }
             catch (Exception ex)
             {
@@ -408,7 +420,7 @@ namespace EWSStreamingNotificationSample
             exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, SMTPAddress);
             exchange.HttpHeaders.Add("X-AnchorMailbox", SMTPAddress);
             exchange.Url = new Uri(EWSUrl);
-            exchange.Credentials = this.Credentials;
+            CredentialHandler().ApplyCredentialsToExchangeService(exchange);
             if (_traceListener != null)
             {
                 exchange.TraceListener = _traceListener;
@@ -486,6 +498,8 @@ namespace EWSStreamingNotificationSample
 
         private void buttonSubscribe_Click(object sender, EventArgs e)
         {
+            if (radioButtonAuthOAuth.Checked)
+                CredentialHandler().AcquireToken();
             CreateGroups();
 
             if (ConnectToSubscriptions())
@@ -597,121 +611,62 @@ namespace EWSStreamingNotificationSample
             }
         }
 
-        private StreamingSubscription AddSubscription(string Mailbox, GroupInfo Group)
-        {
-            // Return the subscription, or create a new one if we don't already have one
-
-            if (_subscriptions == null)
-                _subscriptions = new Dictionary<string, StreamingSubscription>();
-
-            if (_subscriptions.ContainsKey(Mailbox))
-                _subscriptions.Remove(Mailbox);
-
-            ExchangeService exchange = Group.ExchangeService;
-            exchange.Credentials = this.Credentials;
-            exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox);
-
-            // The ExchangeService object for the group has the primary group mailbox set as X-AnchorMailbox
-            // For the subscription request, X-AnchorMailbox needs to match the mailbox being subscribed to
-            // This is a very crude way of managing this and I will improve the process at some point
-
-            if (exchange.HttpHeaders.ContainsKey("X-AnchorMailbox"))
-                exchange.HttpHeaders.Remove("X-AnchorMailbox");
-            exchange.HttpHeaders.Add("X-AnchorMailbox", Mailbox);
-
-            FolderId[] selectedFolders = SelectedFolders();
-            StreamingSubscription subscription;
-            if (comboBoxSubscribeTo.SelectedItem.ToString().Equals("All Folders"))
-            {
-                subscription = exchange.SubscribeToStreamingNotificationsOnAllFolders(SelectedEvents());
-            }
-            else
-                subscription = exchange.SubscribeToStreamingNotifications(SelectedFolders(), SelectedEvents());
-            _subscriptions.Add(Mailbox, subscription);
-            return subscription;
-        }
-
         private void AddGroupSubscriptions(string sGroup)
         {
-            if (!_groups.ContainsKey(sGroup))
-                return;
-
-            if (_connections.ContainsKey(sGroup))
-            {
-                foreach (StreamingSubscription subscription in _connections[sGroup].CurrentSubscriptions)
-                {
-                    try
-                    {
-                        subscription.Unsubscribe();
-                    }
-                    catch { }
-                }
-                try
-                {
-                    _connections[sGroup].Close();
-                }
-                catch { }
-            }
-
-            try
-            {
-                // Create the connection for this group, and the primary mailbox subscription
-                GroupInfo group = _groups[sGroup];
-                StreamingSubscription subscription = AddSubscription(group.PrimaryMailbox, group);
-
-                if (_connections.ContainsKey(sGroup))
-                {
-                    _connections[sGroup] = new StreamingSubscriptionConnection(subscription.Service, (int)numericUpDownTimeout.Value);
-                }
-                else
-                    _connections.Add(sGroup, new StreamingSubscriptionConnection(subscription.Service, (int)numericUpDownTimeout.Value));
-
-                SubscribeConnectionEvents(_connections[sGroup]);
-                _connections[sGroup].AddSubscription(subscription);
-                _logger.Log(String.Format("{0} (primary mailbox) subscription created in group {1}", group.PrimaryMailbox, sGroup));
-
-                // Now add any further subscriptions in this group
-                foreach (string sMailbox in group.Mailboxes)
-                {
-                    if (!sMailbox.Equals(group.PrimaryMailbox))
-                    {
-                        try
-                        {
-                            subscription = AddSubscription(sMailbox, group);
-                            _connections[sGroup].AddSubscription(subscription);
-                            _logger.Log(String.Format("{0} subscription created in group {1}", sMailbox, sGroup));
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Log(String.Format("ERROR when subscribing {0} in group {1}: {2}", sMailbox, sGroup, ex.Message));
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Log(String.Format("ERROR when creating subscription connection group {0}: {1}", sGroup, ex.Message));
-            }
-
+            if (_groups.ContainsKey(sGroup))
+                _groups[sGroup].AddGroupSubscriptions(ref _connections, ref _subscriptions, SelectedEvents(), _logger);
         }
 
         private void AddAllSubscriptions()
         {
+            if (_subscriptions == null)
+                _subscriptions = new Dictionary<string, StreamingSubscription>();
+            if (_connections == null)
+                _connections = new Dictionary<string, StreamingSubscriptionConnection>();
+
             foreach (string sGroup in _groups.Keys)
-            {
                 AddGroupSubscriptions(sGroup);
+
+            // Now we build a reverse mapping so that we know which subscription Id is for which mailbox
+            _subscriptionIdToMailboxMapping = new Dictionary<string, string>();
+            foreach (String mailbox in _subscriptions.Keys)
+                _subscriptionIdToMailboxMapping.Add(_subscriptions[mailbox].Id, mailbox);
+        }
+
+        private Auth.CredentialHandler CredentialHandler()
+        {
+            if (_credentialHandler != null)
+                return _credentialHandler;
+
+            if (radioButtonAuthBasic.Checked)
+            {
+                // We are using Basic auth (also covers NTLM, etc.)
+                _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.Basic);
+                _credentialHandler.Username = textBoxUsername.Text;
+                _credentialHandler.Password = textBoxPassword.Text;
+                _credentialHandler.Domain = textBoxDomain.Text;
             }
+            else
+            {
+                // OAuth
+                _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.OAuth);
+                _credentialHandler.ApplicationId = textBoxApplicationId.Text;
+                _credentialHandler.TenantId = textBoxTenantId.Text;
+                _credentialHandler.ClientSecret = textBoxClientSecret.Text;
+            }
+            return _credentialHandler;
         }
 
         private void CreateGroups()
         {
             // Go through all the mailboxes and organise into groups based on grouping information
             _groups = new Dictionary<string, GroupInfo>();  // Clear any existing groups
-            _mailboxes.Credentials = this.Credentials;
             string ewsUrl = textBoxEWSUri.Text;
             if (radioButtonAutodiscover.Checked)
                 ewsUrl = "";
             _mailboxes.GroupMailboxes = !radioButtonSpecificUri.Checked;
+            _mailboxes.CredentialHandler = CredentialHandler();
+            //Auth.CredentialHandler credentialHandler = CredentialHandler();
 
             foreach (string sMailbox in checkedListBoxMailboxes.CheckedItems)
             {
@@ -726,7 +681,7 @@ namespace EWSStreamingNotificationSample
                     }
                     else
                     {
-                        groupInfo = new GroupInfo(mailboxInfo.GroupName, mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl, _traceListener);
+                        groupInfo = new GroupInfo(mailboxInfo.GroupName, mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl, _credentialHandler, _traceListener);
                         _groups.Add(mailboxInfo.GroupName, groupInfo);
                     }
                     if (groupInfo.Mailboxes.Count > 199)
@@ -738,7 +693,7 @@ namespace EWSStreamingNotificationSample
                             i++;
                         _groups.Remove(groupInfo.Name);
                         _groups.Add(String.Format("{0}{1}", groupInfo.Name, i), groupInfo);
-                        groupInfo = new GroupInfo(mailboxInfo.GroupName, mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl, _traceListener);
+                        groupInfo = new GroupInfo(mailboxInfo.GroupName, mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl, _credentialHandler, _traceListener);
                         _groups.Add(mailboxInfo.GroupName, groupInfo);
                     }
 
@@ -752,7 +707,15 @@ namespace EWSStreamingNotificationSample
             AddAllSubscriptions();
             foreach (StreamingSubscriptionConnection connection in _connections.Values)
             {
-                connection.Open();
+                SubscribeConnectionEvents(connection);
+                try
+                {
+                    connection.Open();
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Error on connect: {ex.Message}");
+                }
             }
             timerMonitorConnections.Start();
             
@@ -779,14 +742,13 @@ namespace EWSStreamingNotificationSample
                             }
                             catch (Exception ex)
                             {
-                                if (ex.Message.StartsWith("You must add at least one subscription to this connection before it can be opened"))
-                                {
-                                    // Try recreating this group
-                                    AddGroupSubscriptions(sConnectionGroup);
-                                }
-                                else
+                                //if (ex.Message.StartsWith("You must add at least one subscription to this connection before it can be opened"))
+                                //{
+                                    // Try recreating this group                                    
+                                    //AddGroupSubscriptions(sConnectionGroup);  This won't currently work as it would involve modifying our _connections collection while reading it
+                                //}
+                                //else
                                     _logger.Log(String.Format("Failed to reopen connection: {0}", ex.Message));
-
                             }
                         }
                         catch (Exception ex)
@@ -812,35 +774,6 @@ namespace EWSStreamingNotificationSample
                 return;
 
             _logger.Log("Subscription error: " + args.Exception.Message);
-        }
-
-        void _connection_OnDisconnect(object sender, SubscriptionErrorEventArgs args)
-        {
-            // Subscription disconnected, so reconnect
-
-            foreach (StreamingSubscriptionConnection connection in _connections.Values)
-            {
-                if (!connection.IsOpen)
-                {
-                    try
-                    {
-                        connection.Open();
-                        _logger.Log("Reconnected");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Log("Failed to reconnect: " + ex.Message);
-                    }
-                }
-            }
-        }
-
-        void _connection_OnNotificationEvent(object sender, NotificationEventArgs args)
-        {
-            foreach (NotificationEvent e in args.Events)
-            {
-                ProcessNotification(e, args.Subscription);
-            }
         }
 
         private void comboBoxSubscribeTo_SelectedIndexChanged(object sender, EventArgs e)
@@ -1005,5 +938,22 @@ namespace EWSStreamingNotificationSample
         {
             UpdateUriUI();
         }
+
+        private void textBoxClientSecret_TextChanged(object sender, EventArgs e)
+        {
+            _credentialHandler = null;
+        }
+
+        private void textBoxApplicationId_TextChanged(object sender, EventArgs e)
+        {
+            _credentialHandler = null;
+        }
+
+        private void textBoxTenantId_TextChanged(object sender, EventArgs e)
+        {
+            _credentialHandler = null;
+        }
+
+
     }
 }

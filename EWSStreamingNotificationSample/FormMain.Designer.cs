@@ -35,15 +35,12 @@
             this.radioButtonOffice365 = new System.Windows.Forms.RadioButton();
             this.radioButtonAutodiscover = new System.Windows.Forms.RadioButton();
             this.buttonEditMailboxes = new System.Windows.Forms.Button();
-            this.label9 = new System.Windows.Forms.Label();
-            this.comboBoxExchangeVersion = new System.Windows.Forms.ComboBox();
             this.label7 = new System.Windows.Forms.Label();
             this.textBoxDomain = new System.Windows.Forms.TextBox();
             this.buttonLoadMailboxes = new System.Windows.Forms.Button();
             this.buttonDeselectAllMailboxes = new System.Windows.Forms.Button();
             this.buttonSelectAllMailboxes = new System.Windows.Forms.Button();
             this.checkedListBoxMailboxes = new System.Windows.Forms.CheckedListBox();
-            this.label4 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.textBoxPassword = new System.Windows.Forms.TextBox();
@@ -68,9 +65,26 @@
             this.checkedListBoxEvents = new System.Windows.Forms.CheckedListBox();
             this.toolTips = new System.Windows.Forms.ToolTip(this.components);
             this.timerMonitorConnections = new System.Windows.Forms.Timer(this.components);
+            this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.radioButtonAuthWithClientSecret = new System.Windows.Forms.RadioButton();
+            this.textBoxAuthCertificate = new System.Windows.Forms.TextBox();
+            this.textBoxClientSecret = new System.Windows.Forms.TextBox();
+            this.radioButtonAuthWithCertificate = new System.Windows.Forms.RadioButton();
+            this.buttonLoadCertificate = new System.Windows.Forms.Button();
+            this.textBoxTenantId = new System.Windows.Forms.TextBox();
+            this.label12 = new System.Windows.Forms.Label();
+            this.label13 = new System.Windows.Forms.Label();
+            this.textBoxApplicationId = new System.Windows.Forms.TextBox();
+            this.radioButtonAuthOAuth = new System.Windows.Forms.RadioButton();
+            this.radioButtonAuthBasic = new System.Windows.Forms.RadioButton();
+            this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownTimeout)).BeginInit();
+            this.groupBox3.SuspendLayout();
+            this.groupBox4.SuspendLayout();
+            this.groupBox5.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupBox1
@@ -79,23 +93,9 @@
             this.groupBox1.Controls.Add(this.radioButtonSpecificUri);
             this.groupBox1.Controls.Add(this.radioButtonOffice365);
             this.groupBox1.Controls.Add(this.radioButtonAutodiscover);
-            this.groupBox1.Controls.Add(this.buttonEditMailboxes);
-            this.groupBox1.Controls.Add(this.label9);
-            this.groupBox1.Controls.Add(this.comboBoxExchangeVersion);
-            this.groupBox1.Controls.Add(this.label7);
-            this.groupBox1.Controls.Add(this.textBoxDomain);
-            this.groupBox1.Controls.Add(this.buttonLoadMailboxes);
-            this.groupBox1.Controls.Add(this.buttonDeselectAllMailboxes);
-            this.groupBox1.Controls.Add(this.buttonSelectAllMailboxes);
-            this.groupBox1.Controls.Add(this.checkedListBoxMailboxes);
-            this.groupBox1.Controls.Add(this.label4);
-            this.groupBox1.Controls.Add(this.label2);
-            this.groupBox1.Controls.Add(this.label1);
-            this.groupBox1.Controls.Add(this.textBoxPassword);
-            this.groupBox1.Controls.Add(this.textBoxUsername);
             this.groupBox1.Location = new System.Drawing.Point(12, 12);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(611, 163);
+            this.groupBox1.Size = new System.Drawing.Size(614, 48);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "EWS Configuration";
@@ -112,12 +112,10 @@
             // radioButtonSpecificUri
             // 
             this.radioButtonSpecificUri.AutoSize = true;
-            this.radioButtonSpecificUri.Checked = true;
             this.radioButtonSpecificUri.Location = new System.Drawing.Point(179, 19);
             this.radioButtonSpecificUri.Name = "radioButtonSpecificUri";
             this.radioButtonSpecificUri.Size = new System.Drawing.Size(41, 17);
             this.radioButtonSpecificUri.TabIndex = 21;
-            this.radioButtonSpecificUri.TabStop = true;
             this.radioButtonSpecificUri.Text = "Uri:";
             this.radioButtonSpecificUri.UseVisualStyleBackColor = true;
             this.radioButtonSpecificUri.CheckedChanged += new System.EventHandler(this.radioButtonSpecificUri_CheckedChanged);
@@ -136,17 +134,19 @@
             // radioButtonAutodiscover
             // 
             this.radioButtonAutodiscover.AutoSize = true;
+            this.radioButtonAutodiscover.Checked = true;
             this.radioButtonAutodiscover.Location = new System.Drawing.Point(6, 19);
             this.radioButtonAutodiscover.Name = "radioButtonAutodiscover";
             this.radioButtonAutodiscover.Size = new System.Drawing.Size(87, 17);
             this.radioButtonAutodiscover.TabIndex = 19;
+            this.radioButtonAutodiscover.TabStop = true;
             this.radioButtonAutodiscover.Text = "Autodiscover";
             this.radioButtonAutodiscover.UseVisualStyleBackColor = true;
             this.radioButtonAutodiscover.CheckedChanged += new System.EventHandler(this.radioButtonAutodiscover_CheckedChanged);
             // 
             // buttonEditMailboxes
             // 
-            this.buttonEditMailboxes.Location = new System.Drawing.Point(340, 134);
+            this.buttonEditMailboxes.Location = new System.Drawing.Point(6, 104);
             this.buttonEditMailboxes.Name = "buttonEditMailboxes";
             this.buttonEditMailboxes.Size = new System.Drawing.Size(50, 23);
             this.buttonEditMailboxes.TabIndex = 18;
@@ -154,32 +154,10 @@
             this.buttonEditMailboxes.UseVisualStyleBackColor = true;
             this.buttonEditMailboxes.Click += new System.EventHandler(this.buttonEditMailboxes_Click);
             // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(8, 125);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(95, 13);
-            this.label9.TabIndex = 17;
-            this.label9.Text = "Exchange version:";
-            // 
-            // comboBoxExchangeVersion
-            // 
-            this.comboBoxExchangeVersion.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBoxExchangeVersion.FormattingEnabled = true;
-            this.comboBoxExchangeVersion.Items.AddRange(new object[] {
-            "Exchange2013",
-            "Exchange2013_SP1",
-            "Exchange2016"});
-            this.comboBoxExchangeVersion.Location = new System.Drawing.Point(109, 122);
-            this.comboBoxExchangeVersion.Name = "comboBoxExchangeVersion";
-            this.comboBoxExchangeVersion.Size = new System.Drawing.Size(157, 21);
-            this.comboBoxExchangeVersion.TabIndex = 16;
-            // 
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(8, 99);
+            this.label7.Location = new System.Drawing.Point(31, 76);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(46, 13);
             this.label7.TabIndex = 15;
@@ -187,14 +165,14 @@
             // 
             // textBoxDomain
             // 
-            this.textBoxDomain.Location = new System.Drawing.Point(70, 96);
+            this.textBoxDomain.Location = new System.Drawing.Point(95, 73);
             this.textBoxDomain.Name = "textBoxDomain";
-            this.textBoxDomain.Size = new System.Drawing.Size(196, 20);
+            this.textBoxDomain.Size = new System.Drawing.Size(128, 20);
             this.textBoxDomain.TabIndex = 14;
             // 
             // buttonLoadMailboxes
             // 
-            this.buttonLoadMailboxes.Location = new System.Drawing.Point(396, 134);
+            this.buttonLoadMailboxes.Location = new System.Drawing.Point(62, 104);
             this.buttonLoadMailboxes.Name = "buttonLoadMailboxes";
             this.buttonLoadMailboxes.Size = new System.Drawing.Size(50, 23);
             this.buttonLoadMailboxes.TabIndex = 13;
@@ -205,7 +183,7 @@
             // 
             // buttonDeselectAllMailboxes
             // 
-            this.buttonDeselectAllMailboxes.Location = new System.Drawing.Point(535, 134);
+            this.buttonDeselectAllMailboxes.Location = new System.Drawing.Point(201, 104);
             this.buttonDeselectAllMailboxes.Name = "buttonDeselectAllMailboxes";
             this.buttonDeselectAllMailboxes.Size = new System.Drawing.Size(70, 23);
             this.buttonDeselectAllMailboxes.TabIndex = 10;
@@ -215,7 +193,7 @@
             // 
             // buttonSelectAllMailboxes
             // 
-            this.buttonSelectAllMailboxes.Location = new System.Drawing.Point(459, 134);
+            this.buttonSelectAllMailboxes.Location = new System.Drawing.Point(125, 104);
             this.buttonSelectAllMailboxes.Name = "buttonSelectAllMailboxes";
             this.buttonSelectAllMailboxes.Size = new System.Drawing.Size(70, 23);
             this.buttonSelectAllMailboxes.TabIndex = 9;
@@ -227,24 +205,15 @@
             // 
             this.checkedListBoxMailboxes.CheckOnClick = true;
             this.checkedListBoxMailboxes.FormattingEnabled = true;
-            this.checkedListBoxMailboxes.Location = new System.Drawing.Point(336, 44);
+            this.checkedListBoxMailboxes.Location = new System.Drawing.Point(6, 19);
             this.checkedListBoxMailboxes.Name = "checkedListBoxMailboxes";
             this.checkedListBoxMailboxes.Size = new System.Drawing.Size(265, 79);
             this.checkedListBoxMailboxes.TabIndex = 8;
             // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(273, 47);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(57, 13);
-            this.label4.TabIndex = 5;
-            this.label4.Text = "Mailboxes:";
-            // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(8, 73);
+            this.label2.Location = new System.Drawing.Point(229, 50);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(56, 13);
             this.label2.TabIndex = 3;
@@ -253,7 +222,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(6, 47);
+            this.label1.Location = new System.Drawing.Point(31, 50);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(58, 13);
             this.label1.TabIndex = 2;
@@ -261,32 +230,32 @@
             // 
             // textBoxPassword
             // 
-            this.textBoxPassword.Location = new System.Drawing.Point(70, 70);
+            this.textBoxPassword.Location = new System.Drawing.Point(291, 47);
             this.textBoxPassword.Name = "textBoxPassword";
-            this.textBoxPassword.Size = new System.Drawing.Size(196, 20);
+            this.textBoxPassword.Size = new System.Drawing.Size(117, 20);
             this.textBoxPassword.TabIndex = 1;
             this.textBoxPassword.UseSystemPasswordChar = true;
             // 
             // textBoxUsername
             // 
-            this.textBoxUsername.Location = new System.Drawing.Point(70, 44);
+            this.textBoxUsername.Location = new System.Drawing.Point(95, 47);
             this.textBoxUsername.Name = "textBoxUsername";
-            this.textBoxUsername.Size = new System.Drawing.Size(196, 20);
+            this.textBoxUsername.Size = new System.Drawing.Size(128, 20);
             this.textBoxUsername.TabIndex = 0;
             // 
             // listBoxEvents
             // 
             this.listBoxEvents.FormattingEnabled = true;
-            this.listBoxEvents.Location = new System.Drawing.Point(12, 306);
+            this.listBoxEvents.Location = new System.Drawing.Point(12, 345);
             this.listBoxEvents.Name = "listBoxEvents";
-            this.listBoxEvents.Size = new System.Drawing.Size(611, 225);
+            this.listBoxEvents.Size = new System.Drawing.Size(1042, 225);
             this.listBoxEvents.TabIndex = 1;
             this.listBoxEvents.DoubleClick += new System.EventHandler(this.listBoxEvents_DoubleClick);
             // 
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(9, 290);
+            this.label3.Location = new System.Drawing.Point(9, 329);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(92, 13);
             this.label3.TabIndex = 2;
@@ -332,7 +301,7 @@
             this.groupBox2.Controls.Add(this.label5);
             this.groupBox2.Controls.Add(this.comboBoxSubscribeTo);
             this.groupBox2.Controls.Add(this.checkedListBoxEvents);
-            this.groupBox2.Location = new System.Drawing.Point(12, 181);
+            this.groupBox2.Location = new System.Drawing.Point(443, 205);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(611, 106);
             this.groupBox2.TabIndex = 7;
@@ -511,11 +480,177 @@
             this.timerMonitorConnections.Interval = 5000;
             this.timerMonitorConnections.Tick += new System.EventHandler(this.timerMonitorConnections_Tick);
             // 
+            // groupBox3
+            // 
+            this.groupBox3.Controls.Add(this.groupBox4);
+            this.groupBox3.Controls.Add(this.buttonLoadCertificate);
+            this.groupBox3.Controls.Add(this.textBoxTenantId);
+            this.groupBox3.Controls.Add(this.label12);
+            this.groupBox3.Controls.Add(this.label13);
+            this.groupBox3.Controls.Add(this.textBoxApplicationId);
+            this.groupBox3.Controls.Add(this.radioButtonAuthOAuth);
+            this.groupBox3.Controls.Add(this.radioButtonAuthBasic);
+            this.groupBox3.Controls.Add(this.textBoxUsername);
+            this.groupBox3.Controls.Add(this.textBoxPassword);
+            this.groupBox3.Controls.Add(this.label1);
+            this.groupBox3.Controls.Add(this.label2);
+            this.groupBox3.Controls.Add(this.textBoxDomain);
+            this.groupBox3.Controls.Add(this.label7);
+            this.groupBox3.Location = new System.Drawing.Point(12, 66);
+            this.groupBox3.Name = "groupBox3";
+            this.groupBox3.Size = new System.Drawing.Size(425, 257);
+            this.groupBox3.TabIndex = 8;
+            this.groupBox3.TabStop = false;
+            this.groupBox3.Text = "Authentication";
+            // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.radioButtonAuthWithClientSecret);
+            this.groupBox4.Controls.Add(this.textBoxAuthCertificate);
+            this.groupBox4.Controls.Add(this.textBoxClientSecret);
+            this.groupBox4.Controls.Add(this.radioButtonAuthWithCertificate);
+            this.groupBox4.Location = new System.Drawing.Point(34, 176);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(324, 67);
+            this.groupBox4.TabIndex = 37;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "Auth method";
+            // 
+            // radioButtonAuthWithClientSecret
+            // 
+            this.radioButtonAuthWithClientSecret.AutoSize = true;
+            this.radioButtonAuthWithClientSecret.Checked = true;
+            this.radioButtonAuthWithClientSecret.Location = new System.Drawing.Point(5, 17);
+            this.radioButtonAuthWithClientSecret.Margin = new System.Windows.Forms.Padding(2, 1, 2, 1);
+            this.radioButtonAuthWithClientSecret.Name = "radioButtonAuthWithClientSecret";
+            this.radioButtonAuthWithClientSecret.Size = new System.Drawing.Size(86, 17);
+            this.radioButtonAuthWithClientSecret.TabIndex = 32;
+            this.radioButtonAuthWithClientSecret.TabStop = true;
+            this.radioButtonAuthWithClientSecret.Tag = "NoTextSave";
+            this.radioButtonAuthWithClientSecret.Text = "Client secret:";
+            this.radioButtonAuthWithClientSecret.UseVisualStyleBackColor = true;
+            // 
+            // textBoxAuthCertificate
+            // 
+            this.textBoxAuthCertificate.Location = new System.Drawing.Point(94, 38);
+            this.textBoxAuthCertificate.Margin = new System.Windows.Forms.Padding(2, 1, 2, 1);
+            this.textBoxAuthCertificate.Name = "textBoxAuthCertificate";
+            this.textBoxAuthCertificate.Size = new System.Drawing.Size(215, 20);
+            this.textBoxAuthCertificate.TabIndex = 36;
+            // 
+            // textBoxClientSecret
+            // 
+            this.textBoxClientSecret.Location = new System.Drawing.Point(94, 16);
+            this.textBoxClientSecret.Name = "textBoxClientSecret";
+            this.textBoxClientSecret.Size = new System.Drawing.Size(215, 20);
+            this.textBoxClientSecret.TabIndex = 33;
+            this.textBoxClientSecret.UseSystemPasswordChar = true;
+            this.textBoxClientSecret.TextChanged += new System.EventHandler(this.textBoxClientSecret_TextChanged);
+            // 
+            // radioButtonAuthWithCertificate
+            // 
+            this.radioButtonAuthWithCertificate.AutoSize = true;
+            this.radioButtonAuthWithCertificate.Location = new System.Drawing.Point(5, 38);
+            this.radioButtonAuthWithCertificate.Margin = new System.Windows.Forms.Padding(2, 1, 2, 1);
+            this.radioButtonAuthWithCertificate.Name = "radioButtonAuthWithCertificate";
+            this.radioButtonAuthWithCertificate.Size = new System.Drawing.Size(75, 17);
+            this.radioButtonAuthWithCertificate.TabIndex = 34;
+            this.radioButtonAuthWithCertificate.Tag = "NoTextSave";
+            this.radioButtonAuthWithCertificate.Text = "Certificate:";
+            this.radioButtonAuthWithCertificate.UseVisualStyleBackColor = true;
+            // 
+            // buttonLoadCertificate
+            // 
+            this.buttonLoadCertificate.Location = new System.Drawing.Point(497, 196);
+            this.buttonLoadCertificate.Margin = new System.Windows.Forms.Padding(2, 1, 2, 1);
+            this.buttonLoadCertificate.Name = "buttonLoadCertificate";
+            this.buttonLoadCertificate.Size = new System.Drawing.Size(50, 21);
+            this.buttonLoadCertificate.TabIndex = 35;
+            this.buttonLoadCertificate.Text = "Select...";
+            this.buttonLoadCertificate.UseVisualStyleBackColor = true;
+            // 
+            // textBoxTenantId
+            // 
+            this.textBoxTenantId.Location = new System.Drawing.Point(119, 126);
+            this.textBoxTenantId.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.textBoxTenantId.Name = "textBoxTenantId";
+            this.textBoxTenantId.Size = new System.Drawing.Size(215, 20);
+            this.textBoxTenantId.TabIndex = 24;
+            this.textBoxTenantId.TextChanged += new System.EventHandler(this.textBoxTenantId_TextChanged);
+            // 
+            // label12
+            // 
+            this.label12.AutoSize = true;
+            this.label12.Location = new System.Drawing.Point(31, 151);
+            this.label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label12.Name = "label12";
+            this.label12.Size = new System.Drawing.Size(80, 13);
+            this.label12.TabIndex = 22;
+            this.label12.Text = "Application ID*:";
+            // 
+            // label13
+            // 
+            this.label13.AutoSize = true;
+            this.label13.Location = new System.Drawing.Point(31, 129);
+            this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label13.Name = "label13";
+            this.label13.Size = new System.Drawing.Size(62, 13);
+            this.label13.TabIndex = 23;
+            this.label13.Tag = "";
+            this.label13.Text = "Tenant ID*:";
+            // 
+            // textBoxApplicationId
+            // 
+            this.textBoxApplicationId.Location = new System.Drawing.Point(119, 148);
+            this.textBoxApplicationId.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+            this.textBoxApplicationId.Name = "textBoxApplicationId";
+            this.textBoxApplicationId.Size = new System.Drawing.Size(215, 20);
+            this.textBoxApplicationId.TabIndex = 25;
+            this.textBoxApplicationId.TextChanged += new System.EventHandler(this.textBoxApplicationId_TextChanged);
+            // 
+            // radioButtonAuthOAuth
+            // 
+            this.radioButtonAuthOAuth.AutoSize = true;
+            this.radioButtonAuthOAuth.Location = new System.Drawing.Point(14, 109);
+            this.radioButtonAuthOAuth.Name = "radioButtonAuthOAuth";
+            this.radioButtonAuthOAuth.Size = new System.Drawing.Size(55, 17);
+            this.radioButtonAuthOAuth.TabIndex = 1;
+            this.radioButtonAuthOAuth.Text = "OAuth";
+            this.radioButtonAuthOAuth.UseVisualStyleBackColor = true;
+            // 
+            // radioButtonAuthBasic
+            // 
+            this.radioButtonAuthBasic.AutoSize = true;
+            this.radioButtonAuthBasic.Checked = true;
+            this.radioButtonAuthBasic.Location = new System.Drawing.Point(14, 24);
+            this.radioButtonAuthBasic.Name = "radioButtonAuthBasic";
+            this.radioButtonAuthBasic.Size = new System.Drawing.Size(182, 17);
+            this.radioButtonAuthBasic.TabIndex = 0;
+            this.radioButtonAuthBasic.TabStop = true;
+            this.radioButtonAuthBasic.Text = "Basic auth (inc. NTLM, Kerberos)";
+            this.radioButtonAuthBasic.UseVisualStyleBackColor = true;
+            // 
+            // groupBox5
+            // 
+            this.groupBox5.Controls.Add(this.checkedListBoxMailboxes);
+            this.groupBox5.Controls.Add(this.buttonSelectAllMailboxes);
+            this.groupBox5.Controls.Add(this.buttonDeselectAllMailboxes);
+            this.groupBox5.Controls.Add(this.buttonLoadMailboxes);
+            this.groupBox5.Controls.Add(this.buttonEditMailboxes);
+            this.groupBox5.Location = new System.Drawing.Point(443, 66);
+            this.groupBox5.Name = "groupBox5";
+            this.groupBox5.Size = new System.Drawing.Size(278, 133);
+            this.groupBox5.TabIndex = 9;
+            this.groupBox5.TabStop = false;
+            this.groupBox5.Text = "Mailboxes";
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(635, 544);
+            this.ClientSize = new System.Drawing.Size(1066, 581);
+            this.Controls.Add(this.groupBox5);
+            this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.listBoxEvents);
@@ -531,6 +666,11 @@
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownTimeout)).EndInit();
+            this.groupBox3.ResumeLayout(false);
+            this.groupBox3.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
+            this.groupBox5.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -539,7 +679,6 @@
         #endregion
 
         private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox textBoxPassword;
@@ -570,13 +709,25 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.TextBox textBoxDomain;
         private System.Windows.Forms.Timer timerMonitorConnections;
-        private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.ComboBox comboBoxExchangeVersion;
         private System.Windows.Forms.Button buttonEditMailboxes;
         private System.Windows.Forms.TextBox textBoxEWSUri;
         private System.Windows.Forms.RadioButton radioButtonSpecificUri;
         private System.Windows.Forms.RadioButton radioButtonOffice365;
         private System.Windows.Forms.RadioButton radioButtonAutodiscover;
+        private System.Windows.Forms.GroupBox groupBox3;
+        private System.Windows.Forms.RadioButton radioButtonAuthOAuth;
+        private System.Windows.Forms.RadioButton radioButtonAuthBasic;
+        private System.Windows.Forms.TextBox textBoxTenantId;
+        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.Label label13;
+        private System.Windows.Forms.TextBox textBoxApplicationId;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.RadioButton radioButtonAuthWithClientSecret;
+        private System.Windows.Forms.TextBox textBoxAuthCertificate;
+        private System.Windows.Forms.TextBox textBoxClientSecret;
+        private System.Windows.Forms.RadioButton radioButtonAuthWithCertificate;
+        private System.Windows.Forms.Button buttonLoadCertificate;
+        private System.Windows.Forms.GroupBox groupBox5;
     }
 }
 

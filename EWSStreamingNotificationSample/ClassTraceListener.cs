@@ -39,8 +39,8 @@ namespace EWSStreamingNotificationSample
         {
             try
             {
-                _traceStream.Flush();
-                _traceStream.Close();
+                _traceStream?.Flush();
+                _traceStream?.Close();
             }
             catch { }
         }

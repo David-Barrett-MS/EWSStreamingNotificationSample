@@ -72,13 +72,13 @@ namespace EWSStreamingNotificationSample
 
         public string GroupName
         {
-            get { return String.Format("{0}{1}", EwsUrl, GroupingInformation); }
+            get { return String.Format("{1}{0}", EwsUrl, GroupingInformation); }
         }
 
         public bool IsStale
         {
             // We assume that the information is stale if it is over 24 hours old
-            get { return DateTime.Now.Subtract(_timeInfoSet) > new TimeSpan(1, 0, 0, 0);  }
+            get { return DateTime.Now.Subtract(_timeInfoSet) > new TimeSpan(0, 24, 0, 0);  }
         }
     }
 }
