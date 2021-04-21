@@ -112,6 +112,7 @@
             // radioButtonSpecificUri
             // 
             this.radioButtonSpecificUri.AutoSize = true;
+            this.radioButtonSpecificUri.Enabled = false;
             this.radioButtonSpecificUri.Location = new System.Drawing.Point(179, 19);
             this.radioButtonSpecificUri.Name = "radioButtonSpecificUri";
             this.radioButtonSpecificUri.Size = new System.Drawing.Size(41, 17);
@@ -123,6 +124,7 @@
             // radioButtonOffice365
             // 
             this.radioButtonOffice365.AutoSize = true;
+            this.radioButtonOffice365.Enabled = false;
             this.radioButtonOffice365.Location = new System.Drawing.Point(99, 19);
             this.radioButtonOffice365.Name = "radioButtonOffice365";
             this.radioButtonOffice365.Size = new System.Drawing.Size(74, 17);

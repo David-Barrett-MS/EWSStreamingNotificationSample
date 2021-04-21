@@ -93,11 +93,14 @@ namespace EWSStreamingNotificationSample
                     return true;
             }
 
+            if (!String.IsNullOrEmpty(EWSUrl))
+                _autodiscover.Url = new Uri(EWSUrl);
+
             MailboxInfo info = null;
             if (!_useGrouping && !String.IsNullOrEmpty(EWSUrl))
             {
                 // No groups, and we have the EWS Url
-                info = new MailboxInfo(SMTPAddress, EWSUrl);
+                info = new MailboxInfo(SMTPAddress, EWSUrl);                
             }
             else
             {
@@ -156,6 +159,7 @@ namespace EWSStreamingNotificationSample
                 }
                 else
                 {
+                    _logger.Log($"Autodiscover Url: {_autodiscover.Url}");
                     return response;
                 }
             }

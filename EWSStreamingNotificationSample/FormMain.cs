@@ -1,5 +1,5 @@
 ﻿/*
- * By David Barrett, Microsoft Ltd. 2013. Use at your own risk.  No warranties are given.
+ * By David Barrett, Microsoft Ltd. 2013-2021. Use at your own risk.  No warranties are given.
  * 
  * DISCLAIMER:
  * THIS CODE IS SAMPLE CODE. THESE SAMPLES ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
@@ -13,15 +13,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using System.DirectoryServices;
 using Microsoft.Exchange.WebServices.Data;
-using Microsoft.Exchange.WebServices.Autodiscover;
 using System.Threading;
 using System.Net;
 
@@ -38,32 +33,31 @@ namespace EWSStreamingNotificationSample
 
     public partial class FormMain : Form
     {
-        ClassLogger _logger=null;
-        ClassTraceListener _traceListener = null;
-        Dictionary<string,StreamingSubscriptionConnection> _connections = null;
-        Dictionary<string, StreamingSubscription> _subscriptions = null;
-        Dictionary<string, GroupInfo> _groups = null;
-        Mailboxes _mailboxes = null;
+        private ClassLogger _logger =null;
+        private ClassTraceListener _traceListener = null;
+        private Dictionary<string,StreamingSubscriptionConnection> _connections = null;
+        private Dictionary<string, StreamingSubscription> _subscriptions = null;
+        private Dictionary<String, String> _subscriptionIdToMailboxMapping = null;
+        private Dictionary<string, GroupInfo> _groups = null;
+        private Mailboxes _mailboxes = null;
         private bool _reconnect = false;
         private Object _reconnectLock = new Object();
         private Auth.CredentialHandler _credentialHandler = null;
-        private Dictionary<String, String> _subscriptionIdToMailboxMapping = null;
 
         public FormMain()
         {
             InitializeComponent();
-
 
             // Create our logger
             _logger = new ClassLogger("Notifications.log");
             _logger.LogAdded += new ClassLogger.LoggerEventHandler(_logger_LogAdded);
             _traceListener = new ClassTraceListener("Trace.log");
 
-            // Increase default connection limit - this is CRUCIAL when supporting multiple subscriptions
+            // Increase default connection limit - this is CRUCIAL when supporting multiple subscriptions, as otherwise only 2 connections will work
             ServicePointManager.DefaultConnectionLimit = 255;
             _logger.Log("Default connection limit increased to 255");
 
-            comboBoxSubscribeTo.SelectedIndex = 5; // Set to Inbox first of all
+            comboBoxSubscribeTo.SelectedIndex = 0; // Select All Folders
             buttonUnsubscribe.Enabled = false;
             checkBoxSelectAll.CheckState = CheckState.Checked;
             checkBoxSelectAll_CheckedChanged(this, null);
@@ -78,6 +72,7 @@ namespace EWSStreamingNotificationSample
 
         private void ReadMailboxes(string MailboxFile="")
         {
+            // We read config from a file.  If no filename provided, we check for one for this machine name
             string sMailboxFile = MailboxFile;
             if (String.IsNullOrEmpty(MailboxFile))
                 sMailboxFile = "Mailboxes " + Environment.MachineName.ToUpper() + ".txt";
@@ -139,12 +134,14 @@ namespace EWSStreamingNotificationSample
             }
             catch (Exception ex)
             {
-                System.Windows.Forms.MessageBox.Show(ex.Message, "Error");
+                MessageBox.Show(ex.Message, "Error");
             }
         }
 
         private ExchangeService ExchangeServiceForMailboxAccess(MailboxInfo Mailbox)
         {
+            // Create an ExchangeService object for mailbox access (used to retrieve further information about notified items)
+
             ExchangeService mailboxAccessService = new ExchangeService(ExchangeVersion.Exchange2016);
             CredentialHandler().ApplyCredentialsToExchangeService(mailboxAccessService);
             mailboxAccessService.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox.SMTPAddress);
@@ -160,6 +157,7 @@ namespace EWSStreamingNotificationSample
         {
             // We have received a notification
 
+            // We have the subscription Id, so we need to get the mailbox
             string sMailbox = "Unknown mailbox"; 
             if (_subscriptionIdToMailboxMapping.ContainsKey(Subscription.Id))
                 sMailbox = _subscriptionIdToMailboxMapping[Subscription.Id];
@@ -414,88 +412,6 @@ namespace EWSStreamingNotificationSample
             return events;
         }
 
-        private ExchangeService CreateExchange2010Service(string SMTPAddress, string EWSUrl)
-        {
-            ExchangeService exchange = new ExchangeService(ExchangeVersion.Exchange2010_SP1);
-            exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, SMTPAddress);
-            exchange.HttpHeaders.Add("X-AnchorMailbox", SMTPAddress);
-            exchange.Url = new Uri(EWSUrl);
-            CredentialHandler().ApplyCredentialsToExchangeService(exchange);
-            if (_traceListener != null)
-            {
-                exchange.TraceListener = _traceListener;
-                exchange.TraceFlags = TraceFlags.All;
-                exchange.TraceEnabled = true;
-            }
-            return exchange;
-        }
-
-        private void SubscribeAndConnect2010()
-        {
-            // Exchange 2010 does not support groups, so we just loop through all the mailboxes and subscribe
-
-            string ewsUrl = textBoxEWSUri.Text;
-            if (radioButtonAutodiscover.Checked)
-                ewsUrl = "";
-
-            foreach (string sMailbox in checkedListBoxMailboxes.CheckedItems)
-            {
-                _mailboxes.GroupMailboxes = false;
-                _mailboxes.AddMailbox(sMailbox, ewsUrl);
-                MailboxInfo mailboxInfo = _mailboxes.Mailbox(sMailbox);
-
-                if (_subscriptions == null)
-                    _subscriptions = new Dictionary<string, StreamingSubscription>();
-
-                if (mailboxInfo != null)
-                {
-                    // We have a mailbox, create the subscription
-                    ExchangeService exchange = CreateExchange2010Service(mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl);
-                    try
-                    {
-                        StreamingSubscription streamingSubscription = null;
-                        if (comboBoxSubscribeTo.SelectedItem.ToString().Equals("All Folders"))
-                        {
-                            streamingSubscription = exchange.SubscribeToStreamingNotificationsOnAllFolders(SelectedEvents());
-                        }
-                        else
-                            streamingSubscription = exchange.SubscribeToStreamingNotifications(SelectedFolders(), SelectedEvents());
-
-                        _subscriptions.Add(mailboxInfo.SMTPAddress, streamingSubscription);
-                        if (_connections.ContainsKey("all"))
-                        {
-                            _connections["all"].AddSubscription(streamingSubscription);
-                        }
-                        else
-                        { 
-                            StreamingSubscriptionConnection connection = new StreamingSubscriptionConnection(exchange, 1);
-                            SubscribeConnectionEvents(connection);
-                            connection.AddSubscription(streamingSubscription);
-                            _connections.Add("all", connection);
-                        }
-                        _logger.Log(mailboxInfo.SMTPAddress + ": subscribed");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Log(mailboxInfo.SMTPAddress + ": " + ex.Message);
-                    }
-                }
-            }
-
-            if (_connections.ContainsKey("all"))
-            {
-                if (_connections["all"].CurrentSubscriptions.Count() > 0)
-                {
-                    _connections["all"].Open();
-                    _logger.Log("Connection opened.");
-                    buttonUnsubscribe.Enabled = true;
-                    buttonSubscribe.Enabled = false;
-                }
-            }
-            else
-                _logger.Log("No connection found to open.");
-        }
-
         private void buttonSubscribe_Click(object sender, EventArgs e)
         {
             if (radioButtonAuthOAuth.Checked)
@@ -515,6 +431,9 @@ namespace EWSStreamingNotificationSample
 
         private FolderId[] SelectedFolders()
         {
+            if (comboBoxSubscribeTo.SelectedIndex < 1)
+                return null; // Subscribe to all folders
+
             FolderId[] folders = new FolderId[1];
             string sSubscribeFolder = "";
             if (comboBoxSubscribeTo.InvokeRequired)
@@ -614,7 +533,7 @@ namespace EWSStreamingNotificationSample
         private void AddGroupSubscriptions(string sGroup)
         {
             if (_groups.ContainsKey(sGroup))
-                _groups[sGroup].AddGroupSubscriptions(ref _connections, ref _subscriptions, SelectedEvents(), _logger);
+                _groups[sGroup].AddGroupSubscriptions(ref _connections, ref _subscriptions, SelectedEvents(), SelectedFolders(), _logger);
         }
 
         private void AddAllSubscriptions()

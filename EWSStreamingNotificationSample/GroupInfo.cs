@@ -137,7 +137,7 @@ namespace EWSStreamingNotificationSample
         }
 
         private StreamingSubscription AddSubscription(string Mailbox,
-            ref Dictionary<string, StreamingSubscription> SubscriptionList, EventType[] SubscribeEvents, ExchangeService exchange = null)
+            ref Dictionary<string, StreamingSubscription> SubscriptionList, EventType[] SubscribeEvents, FolderId[] SubscribeFolders = null, ExchangeService exchange = null)
         {
             // Return the subscription, or create a new one if we don't already have one
 
@@ -149,8 +149,11 @@ namespace EWSStreamingNotificationSample
             exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox);
 
             //FolderId[] selectedFolders = SelectedFolders();
-            StreamingSubscription subscription = exchange.SubscribeToStreamingNotificationsOnAllFolders(SubscribeEvents);
-                //subscription = exchange.SubscribeToStreamingNotifications(SelectedFolders(), SelectedEvents());
+            StreamingSubscription subscription;
+            if (SubscribeFolders==null)
+                subscription = exchange.SubscribeToStreamingNotificationsOnAllFolders(SubscribeEvents);
+            else
+                subscription = exchange.SubscribeToStreamingNotifications(SubscribeFolders, SubscribeEvents);
             SubscriptionList.Add(Mailbox, subscription);
 
 
@@ -168,6 +171,7 @@ namespace EWSStreamingNotificationSample
             ref Dictionary<string, StreamingSubscriptionConnection> Connections,
             ref Dictionary<string, StreamingSubscription> SubscriptionList,
             EventType[] SubscribeEvents,
+            FolderId[] SubscribeFolders,
             ClassLogger Logger,
             int TimeOut = 30)
         {
@@ -193,7 +197,7 @@ namespace EWSStreamingNotificationSample
             try
             {
                 // Create the subscription to the primary mailbox, then create the subscription connection
-                StreamingSubscription subscription = AddSubscription(_primaryMailbox, ref SubscriptionList, SubscribeEvents);
+                StreamingSubscription subscription = AddSubscription(_primaryMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
                 groupConnection = new StreamingSubscriptionConnection(subscription.Service, TimeOut);
                 Connections.Add(_name, groupConnection);
 
@@ -208,7 +212,7 @@ namespace EWSStreamingNotificationSample
                     {
                         try
                         {
-                            subscription = AddSubscription(sMailbox, ref SubscriptionList,SubscribeEvents);
+                            subscription = AddSubscription(sMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
                             groupConnection.AddSubscription(subscription);
                             Logger.Log($"{sMailbox} subscription created in group {_name}");
                         }
