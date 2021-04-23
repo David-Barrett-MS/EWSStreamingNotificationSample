@@ -560,7 +560,7 @@ namespace EWSStreamingNotificationSample
             if (radioButtonAuthBasic.Checked)
             {
                 // We are using Basic auth (also covers NTLM, etc.)
-                _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.Basic);
+                _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.Basic, _logger);
                 _credentialHandler.Username = textBoxUsername.Text;
                 _credentialHandler.Password = textBoxPassword.Text;
                 _credentialHandler.Domain = textBoxDomain.Text;
@@ -568,7 +568,7 @@ namespace EWSStreamingNotificationSample
             else
             {
                 // OAuth
-                _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.OAuth);
+                _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.OAuth, _logger);
                 _credentialHandler.ApplicationId = textBoxApplicationId.Text;
                 _credentialHandler.TenantId = textBoxTenantId.Text;
                 _credentialHandler.ClientSecret = textBoxClientSecret.Text;
@@ -645,6 +645,7 @@ namespace EWSStreamingNotificationSample
         {
             // Go through our connections and reconnect any that have closed
             _reconnect = false;
+            List<string> groupsToRecreate = new List<string>();
             lock (_reconnectLock)  // Prevent this code being run concurrently (i.e. if an event fires in the middle of the processing)
             {
                 foreach (string sConnectionGroup in _connections.Keys)
@@ -654,27 +655,33 @@ namespace EWSStreamingNotificationSample
                     {
                         try
                         {
-                            try
+                            if (radioButtonAuthOAuth.Checked)
                             {
-                                connection.Open();
-                                _logger.Log(String.Format("Re-opened connection for group {0}", sConnectionGroup));
+                                // If we are using OAuth, we need to ensure that the token is still valid
+                                _logger.Log($"Updating OAuth token on all subscriptions in group {sConnectionGroup}");
+                                foreach (StreamingSubscription subscription in connection.CurrentSubscriptions)
+                                    CredentialHandler().ApplyCredentialsToExchangeService(subscription.Service);
                             }
-                            catch (Exception ex)
-                            {
-                                //if (ex.Message.StartsWith("You must add at least one subscription to this connection before it can be opened"))
-                                //{
-                                    // Try recreating this group                                    
-                                    //AddGroupSubscriptions(sConnectionGroup);  This won't currently work as it would involve modifying our _connections collection while reading it
-                                //}
-                                //else
-                                    _logger.Log(String.Format("Failed to reopen connection: {0}", ex.Message));
-                            }
+                            connection.Open();
+                            _logger.Log(String.Format("Re-opened connection for group {0}", sConnectionGroup));
                         }
                         catch (Exception ex)
                         {
-                            _logger.Log(String.Format("Failed to reopen connection: {0}", ex.Message));
+                            if (ex.Message.StartsWith("You must add at least one subscription to this connection before it can be opened"))
+                            {
+                                // Try recreating this group                                    
+                                groupsToRecreate.Add(sConnectionGroup);
+                                //AddGroupSubscriptions(sConnectionGroup);  This won't currently work as it would involve modifying our _connections collection while reading it
+                            }
+                            else
+                                _logger.Log($"Failed to reopen connection: {ex.Message}");
                         }
                     }
+                }
+                foreach (string sConnectionGroup in groupsToRecreate)
+                {
+                    _logger.Log($"Rebuilding subscriptions for group: {sConnectionGroup}");
+                    AddGroupSubscriptions(sConnectionGroup);
                 }
             }
         }

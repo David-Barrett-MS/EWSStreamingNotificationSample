@@ -39,10 +39,12 @@ namespace EWSStreamingNotificationSample.Auth
         AuthType _authType = AuthType.Basic;
         private AuthenticationResult _lastOAuthResult = null;
         private OAuthHelper _oAuthHelper = new OAuthHelper();
+        private ClassLogger _logger = null;
 
-        public CredentialHandler(AuthType authType)
+        public CredentialHandler(AuthType authType, ClassLogger Logger=null)
         {
             _authType = authType;
+            _logger = Logger;
         }
 
         public string Username { get; set; } = String.Empty;
@@ -69,6 +71,13 @@ namespace EWSStreamingNotificationSample.Auth
             }
         }
 
+        public bool OAuthTokenExpired()
+        {
+            if (_lastOAuthResult != null && _lastOAuthResult.ExpiresOn > DateTime.Now)
+                return false;
+            return true;
+        }
+
         public X509Certificate2 Certificate
         {
             get { return _certificate; }
@@ -81,6 +90,7 @@ namespace EWSStreamingNotificationSample.Auth
             try
             {
                 _lastOAuthResult = Task.Run(async () => await OAuthHelper.GetApplicationToken(ApplicationId, TenantId, ClientSecret)).Result;
+                _logger?.Log($"Token obtained, expires {_lastOAuthResult.ExpiresOn}");
             }
             catch (Exception ex)
             {
@@ -93,6 +103,7 @@ namespace EWSStreamingNotificationSample.Auth
             try
             {
                 _lastOAuthResult = Task.Run(async () => await OAuthHelper.GetApplicationToken(ApplicationId, TenantId, Certificate)).Result;
+                _logger?.Log($"Token obtained, expires {_lastOAuthResult.ExpiresOn}");
             }
             catch (Exception ex)
             {
@@ -102,6 +113,7 @@ namespace EWSStreamingNotificationSample.Auth
 
         public void AcquireToken()
         {
+            _logger?.Log("Requesting new access token");
             if (_certificate != null)
                 GetAppTokenWithCertificate();
             else

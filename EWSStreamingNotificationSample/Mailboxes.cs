@@ -29,7 +29,8 @@ namespace EWSStreamingNotificationSample
         private Auth.CredentialHandler _credentialHandler;
         private ClassLogger _logger;
         private bool _useGrouping = true;
-        
+        private string _lastKnownAutodiscoverUrl = "";
+
 
         public Mailboxes(ClassLogger Logger, ITraceListener TraceListener = null, Auth.CredentialHandler CredentialHandler = null)
         {
@@ -93,8 +94,8 @@ namespace EWSStreamingNotificationSample
                     return true;
             }
 
-            if (!String.IsNullOrEmpty(EWSUrl))
-                _autodiscover.Url = new Uri(EWSUrl);
+            if (!String.IsNullOrEmpty(_lastKnownAutodiscoverUrl))
+                _autodiscover.Url = new Uri(_lastKnownAutodiscoverUrl);
 
             MailboxInfo info = null;
             if (!_useGrouping && !String.IsNullOrEmpty(EWSUrl))
@@ -105,16 +106,33 @@ namespace EWSStreamingNotificationSample
             else
             {
                 // Retrieve the autodiscover information
+                _logger.Log($"Retrieving user settings for {SMTPAddress}");
                 GetUserSettingsResponse userSettings = null;
-                try
+                if (!String.IsNullOrEmpty(_lastKnownAutodiscoverUrl))
                 {
-                    _logger.Log($"Retrieving user settings for {SMTPAddress}");
-                    userSettings = GetUserSettings(SMTPAddress);
+                    // Try getting the user settings from our last known AutodiscoverUrl
+                    try
+                    {
+                        userSettings = _autodiscover.GetUserSettings(SMTPAddress, UserSettingName.InternalEwsUrl, UserSettingName.ExternalEwsUrl, UserSettingName.GroupingInformation);
+                    }
+                    catch
+                    {
+                        _lastKnownAutodiscoverUrl = "";
+                    }
                 }
-                catch (Exception ex)
+                
+                if (String.IsNullOrEmpty(_lastKnownAutodiscoverUrl))
                 {
-                    _logger.Log(String.Format("Failed to autodiscover for {0}: {1}", SMTPAddress, ex.Message));
-                    return false;
+                    try
+                    {
+                        userSettings = GetUserSettings(SMTPAddress);
+                        _lastKnownAutodiscoverUrl = _autodiscover.Url.AbsoluteUri;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log(String.Format("Failed to autodiscover for {0}: {1}", SMTPAddress, ex.Message));
+                        return false;
+                    }
                 }
 
                 // Store the autodiscover result, and check that we have what we need for subscriptions
@@ -132,7 +150,7 @@ namespace EWSStreamingNotificationSample
             return true;
         }
 
-        private GetUserSettingsResponse GetUserSettings(string Mailbox)
+        private GetUserSettingsResponse GetUserSettings(string Mailbox, string startUrl = "")
         {
             // Attempt autodiscover, with maximum of 10 hops
             // As per MSDN: http://msdn.microsoft.com/en-us/library/office/microsoft.exchange.webservices.autodiscover.autodiscoverservice.getusersettings(v=exchg.80).aspx

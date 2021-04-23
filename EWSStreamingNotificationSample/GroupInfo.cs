@@ -187,7 +187,8 @@ namespace EWSStreamingNotificationSample
                 }
                 try
                 {
-                    Connections[_name].Close();
+                    if (Connections[_name].IsOpen)
+                        Connections[_name].Close();
                 }
                 catch { }
                 Connections.Remove(_name);
@@ -197,6 +198,8 @@ namespace EWSStreamingNotificationSample
             try
             {
                 // Create the subscription to the primary mailbox, then create the subscription connection
+                if (SubscriptionList.ContainsKey(_primaryMailbox))
+                    SubscriptionList.Remove(_primaryMailbox);
                 StreamingSubscription subscription = AddSubscription(_primaryMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
                 groupConnection = new StreamingSubscriptionConnection(subscription.Service, TimeOut);
                 Connections.Add(_name, groupConnection);
@@ -212,6 +215,8 @@ namespace EWSStreamingNotificationSample
                     {
                         try
                         {
+                            if (SubscriptionList.ContainsKey(sMailbox))
+                                SubscriptionList.Remove(sMailbox);
                             subscription = AddSubscription(sMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
                             groupConnection.AddSubscription(subscription);
                             Logger.Log($"{sMailbox} subscription created in group {_name}");
