@@ -85,6 +85,7 @@ namespace EWSStreamingNotificationSample
 
                 _exchangeService.HttpHeaders.Add("X-AnchorMailbox", _primaryMailbox);
                 _exchangeService.HttpHeaders.Add("X-PreferServerAffinity", "true");
+                _exchangeService.HttpHeaders.Add("return-client-request-id", "true");
 
                 _exchangeService.Url = new Uri(_ewsUrl);
                 if (_traceListener != null)
@@ -136,6 +137,13 @@ namespace EWSStreamingNotificationSample
             }
         }
 
+        private void SetClientRequestId(ExchangeService exchangeService)
+        {
+            if (exchangeService.HttpHeaders.ContainsKey("client-request-id"))
+                exchangeService.HttpHeaders.Remove("client-request-id");
+            exchangeService.HttpHeaders.Add("client-request-id", Guid.NewGuid().ToString());
+        }
+
         private StreamingSubscription AddSubscription(string Mailbox,
             ref Dictionary<string, StreamingSubscription> SubscriptionList, EventType[] SubscribeEvents, FolderId[] SubscribeFolders = null, ExchangeService exchange = null)
         {
@@ -150,6 +158,7 @@ namespace EWSStreamingNotificationSample
 
             //FolderId[] selectedFolders = SelectedFolders();
             StreamingSubscription subscription;
+            SetClientRequestId(exchange);
             if (SubscribeFolders==null)
                 subscription = exchange.SubscribeToStreamingNotificationsOnAllFolders(SubscribeEvents);
             else
@@ -161,6 +170,8 @@ namespace EWSStreamingNotificationSample
             {
                 // Check for the X-BackendOverride cookie
                 // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
+                // We don't actually need this as we rely on the ExchangeService object to keep track of cookies
+
                 System.Net.CookieCollection cookies = exchange.CookieContainer.GetCookies(new Uri("https://outlook.office365.com"));
                 _xBackendOverrideCookie = $"X-BackEndOverrideCookie={cookies["X-BackEndOverrideCookie"].Value}";
             }
