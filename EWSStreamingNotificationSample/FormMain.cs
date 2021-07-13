@@ -29,8 +29,6 @@ namespace EWSStreamingNotificationSample
         public ExchangeService Service;
     }
 
-
-
     public partial class FormMain : Form
     {
         private ClassLogger _logger =null;
@@ -146,6 +144,8 @@ namespace EWSStreamingNotificationSample
             CredentialHandler().ApplyCredentialsToExchangeService(mailboxAccessService);
             mailboxAccessService.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox.SMTPAddress);
             mailboxAccessService.HttpHeaders.Add("X-AnchorMailbox", Mailbox.SMTPAddress);
+            mailboxAccessService.HttpHeaders.Add("client-request-id", Guid.NewGuid().ToString());
+            mailboxAccessService.HttpHeaders.Add("return-client-request-id", "true");
             mailboxAccessService.Url = new Uri(Mailbox.EwsUrl);
             mailboxAccessService.TraceListener = _traceListener;
             mailboxAccessService.TraceFlags = TraceFlags.All;
