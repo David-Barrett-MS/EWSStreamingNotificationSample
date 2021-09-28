@@ -24,6 +24,7 @@ namespace EWSStreamingNotificationSample
     {
         string _traceFile = "";
         private StreamWriter _traceStream = null;
+        object _writeLock;
 
         public ClassTraceListener(string traceFile)
         {
@@ -49,7 +50,7 @@ namespace EWSStreamingNotificationSample
             if (_traceStream == null)
                 return;
 
-            lock (this)
+            lock (_writeLock)
             {
                 try
                 {
