@@ -27,6 +27,7 @@ namespace EWSStreamingNotificationSample
         private Dictionary<string, MailboxInfo> _mailboxes;  // Stores information for each mailbox, as returned by autodiscover
         private AutodiscoverService _autodiscover;
         private Auth.CredentialHandler _credentialHandler;
+        private ITraceListener _traceListener;
         private ClassLogger _logger;
         private bool _useGrouping = true;
         private string _lastKnownAutodiscoverUrl = "";
@@ -37,11 +38,18 @@ namespace EWSStreamingNotificationSample
             _logger = Logger;
             _credentialHandler = CredentialHandler;
             _mailboxes = new Dictionary<string, MailboxInfo>();
+            _traceListener = TraceListener;
+            CreateAutodiscoverService();
+        }
+
+        private void CreateAutodiscoverService()
+        {
             _autodiscover = new AutodiscoverService(ExchangeVersion.Exchange2013);  // Minimum version we need is 2013
+
             _autodiscover.RedirectionUrlValidationCallback = RedirectionCallback;
-            if (TraceListener != null)
+            if (_traceListener != null)
             {
-                _autodiscover.TraceListener = TraceListener;
+                _autodiscover.TraceListener = _traceListener;
                 _autodiscover.TraceFlags = TraceFlags.All;
                 _autodiscover.TraceEnabled = true;
             }
@@ -50,6 +58,7 @@ namespace EWSStreamingNotificationSample
                 _credentialHandler = CredentialHandler;
                 _credentialHandler.ApplyCredentialsToAutodiscoverService(_autodiscover);
             }
+
         }
 
         static bool RedirectionCallback(string url)
@@ -126,7 +135,8 @@ namespace EWSStreamingNotificationSample
                     try
                     {
                         userSettings = GetUserSettings(SMTPAddress);
-                        _lastKnownAutodiscoverUrl = _autodiscover.Url.AbsoluteUri;
+                        if (_autodiscover.Url != null)
+                            _lastKnownAutodiscoverUrl = _autodiscover.Url.AbsoluteUri;
                     }
                     catch (Exception ex)
                     {
@@ -153,26 +163,33 @@ namespace EWSStreamingNotificationSample
         private GetUserSettingsResponse GetUserSettings(string Mailbox, string startUrl = "")
         {
             // Attempt autodiscover, with maximum of 10 hops
-            // As per MSDN: http://msdn.microsoft.com/en-us/library/office/microsoft.exchange.webservices.autodiscover.autodiscoverservice.getusersettings(v=exchg.80).aspx
+            // As per docs: https://docs.microsoft.com/en-us/dotnet/api/microsoft.exchange.webservices.autodiscover.autodiscoverservice.getusersettings?view=exchange-ews-api
 
             Uri url = null;
             GetUserSettingsResponse response = null;
+            if (!String.IsNullOrEmpty(startUrl))
+                url = new Uri(startUrl);
+
             if (!_credentialHandler.ApplyCredentialsToAutodiscoverService(_autodiscover))
                 throw new Exception("Failed to apply credentials to Autodiscover service");
+                
 
             for (int attempt = 0; attempt < 10; attempt++)
             {
-                _autodiscover.Url = url;
-                _autodiscover.EnableScpLookup = (attempt < 2);
+                if (url != null)
+                    _autodiscover.Url = url;
+                _autodiscover.EnableScpLookup = false;// (attempt < 2);
 
                 response = _autodiscover.GetUserSettings(Mailbox, UserSettingName.InternalEwsUrl, UserSettingName.ExternalEwsUrl, UserSettingName.GroupingInformation);
 
                 if (response.ErrorCode == AutodiscoverErrorCode.RedirectAddress)
                 {
+                    // Redirecting to different mail address (can occur in hybrid)
                     return GetUserSettings(response.RedirectTarget);
                 }
                 else if (response.ErrorCode == AutodiscoverErrorCode.RedirectUrl)
                 {
+                    // Redirecting to another AutoDiscover Url
                     url = new Uri(response.RedirectTarget);
                 }
                 else

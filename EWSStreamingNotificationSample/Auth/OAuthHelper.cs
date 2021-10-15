@@ -40,6 +40,8 @@ namespace EWSStreamingNotificationSample.Auth
 
             if (ClientId.Equals("4a03b746-45be-488c-bfe5-0ffdac557d68"))
                 pca = pca.WithRedirectUri("http://localhost/SOAPe");
+            else
+                pca = pca.WithRedirectUri("http://localhost/code");
 
             var app = pca.Build();
 
