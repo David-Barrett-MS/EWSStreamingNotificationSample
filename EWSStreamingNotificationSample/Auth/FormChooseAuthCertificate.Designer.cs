@@ -107,6 +107,7 @@ namespace EWSStreamingNotificationSample.Auth
             this.buttonBrowseForCertificate.TabIndex = 4;
             this.buttonBrowseForCertificate.Text = "...";
             this.buttonBrowseForCertificate.UseVisualStyleBackColor = true;
+            this.buttonBrowseForCertificate.Click += new System.EventHandler(this.buttonBrowseForCertificate_Click);
             // 
             // textBoxCertificateFile
             // 
@@ -124,6 +125,7 @@ namespace EWSStreamingNotificationSample.Auth
             this.comboBoxStoreCertificates.Name = "comboBoxStoreCertificates";
             this.comboBoxStoreCertificates.Size = new System.Drawing.Size(295, 21);
             this.comboBoxStoreCertificates.TabIndex = 2;
+            this.comboBoxStoreCertificates.SelectedIndexChanged += new System.EventHandler(this.comboBoxStoreCertificates_SelectedIndexChanged);
             // 
             // radioButtonLoadFromFile
             // 
@@ -135,6 +137,7 @@ namespace EWSStreamingNotificationSample.Auth
             this.radioButtonLoadFromFile.TabStop = true;
             this.radioButtonLoadFromFile.Text = "Load from file";
             this.radioButtonLoadFromFile.UseVisualStyleBackColor = true;
+            this.radioButtonLoadFromFile.CheckedChanged += new System.EventHandler(this.radioButtonSelectFromStore_CheckedChanged);
             // 
             // radioButtonSelectFromStore
             // 
@@ -147,6 +150,7 @@ namespace EWSStreamingNotificationSample.Auth
             this.radioButtonSelectFromStore.TabStop = true;
             this.radioButtonSelectFromStore.Text = "Select from store";
             this.radioButtonSelectFromStore.UseVisualStyleBackColor = true;
+            this.radioButtonSelectFromStore.CheckedChanged += new System.EventHandler(this.radioButtonSelectFromStore_CheckedChanged);
             // 
             // buttonCancel
             // 
@@ -157,6 +161,7 @@ namespace EWSStreamingNotificationSample.Auth
             this.buttonCancel.TabIndex = 7;
             this.buttonCancel.Text = "Cancel";
             this.buttonCancel.UseVisualStyleBackColor = true;
+            this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
             // 
             // buttonOK
             // 
@@ -167,6 +172,7 @@ namespace EWSStreamingNotificationSample.Auth
             this.buttonOK.TabIndex = 6;
             this.buttonOK.Text = "&OK";
             this.buttonOK.UseVisualStyleBackColor = true;
+            this.buttonOK.Click += new System.EventHandler(this.buttonOK_Click);
             // 
             // FormChooseAuthCertificate
             // 

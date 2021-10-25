@@ -66,6 +66,7 @@ namespace EWSStreamingNotificationSample
             _mailboxes = new Mailboxes(_logger, _traceListener);
 
             UpdateUriUI();
+            UpdateAuthUI();
         }
 
         private void ReadMailboxes(string MailboxFile="")
@@ -571,7 +572,10 @@ namespace EWSStreamingNotificationSample
                 _credentialHandler = new Auth.CredentialHandler(Auth.AuthType.OAuth, _logger);
                 _credentialHandler.ApplicationId = textBoxApplicationId.Text;
                 _credentialHandler.TenantId = textBoxTenantId.Text;
-                _credentialHandler.ClientSecret = textBoxClientSecret.Text;
+                if (radioButtonAuthWithClientSecret.Checked)
+                    _credentialHandler.ClientSecret = textBoxClientSecret.Text;
+                else if (textBoxAuthCertificate.Tag != null)
+                    _credentialHandler.Certificate = (System.Security.Cryptography.X509Certificates.X509Certificate2)textBoxAuthCertificate.Tag;
             }
             return _credentialHandler;
         }
@@ -880,6 +884,36 @@ namespace EWSStreamingNotificationSample
             _credentialHandler = null;
         }
 
+        private void buttonSelectCertificate_Click(object sender, EventArgs e)
+        {
+            using (Auth.FormChooseAuthCertificate formChooseCert = new Auth.FormChooseAuthCertificate())
+            {
+                formChooseCert.ShowDialog(this);
+                if (formChooseCert.Certificate != null)
+                {
+                    textBoxAuthCertificate.Text = formChooseCert.Certificate.FriendlyName;
+                    if (_credentialHandler != null)
+                        _credentialHandler.Certificate = formChooseCert.Certificate;
+                    textBoxAuthCertificate.Tag = formChooseCert.Certificate;
+                }
+            }
+        }
+        
+        private void UpdateAuthUI()
+        {
+            textBoxAuthCertificate.Enabled = radioButtonAuthWithCertificate.Checked;
+            buttonSelectCertificate.Enabled = radioButtonAuthWithCertificate.Checked;
+            textBoxClientSecret.Enabled = radioButtonAuthWithClientSecret.Checked;
+        }
 
+        private void radioButtonAuthWithCertificate_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateAuthUI();
+        }
+
+        private void radioButtonAuthWithClientSecret_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateAuthUI();
+        }
     }
 }

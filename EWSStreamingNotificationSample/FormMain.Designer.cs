@@ -79,6 +79,7 @@
             this.radioButtonAuthOAuth = new System.Windows.Forms.RadioButton();
             this.radioButtonAuthBasic = new System.Windows.Forms.RadioButton();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.buttonSelectCertificate = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownTimeout)).BeginInit();
@@ -507,6 +508,7 @@
             // 
             // groupBox4
             // 
+            this.groupBox4.Controls.Add(this.buttonSelectCertificate);
             this.groupBox4.Controls.Add(this.radioButtonAuthWithClientSecret);
             this.groupBox4.Controls.Add(this.textBoxAuthCertificate);
             this.groupBox4.Controls.Add(this.textBoxClientSecret);
@@ -531,13 +533,14 @@
             this.radioButtonAuthWithClientSecret.Tag = "NoTextSave";
             this.radioButtonAuthWithClientSecret.Text = "Client secret:";
             this.radioButtonAuthWithClientSecret.UseVisualStyleBackColor = true;
+            this.radioButtonAuthWithClientSecret.CheckedChanged += new System.EventHandler(this.radioButtonAuthWithClientSecret_CheckedChanged);
             // 
             // textBoxAuthCertificate
             // 
             this.textBoxAuthCertificate.Location = new System.Drawing.Point(94, 38);
             this.textBoxAuthCertificate.Margin = new System.Windows.Forms.Padding(2, 1, 2, 1);
             this.textBoxAuthCertificate.Name = "textBoxAuthCertificate";
-            this.textBoxAuthCertificate.Size = new System.Drawing.Size(215, 20);
+            this.textBoxAuthCertificate.Size = new System.Drawing.Size(162, 20);
             this.textBoxAuthCertificate.TabIndex = 36;
             // 
             // textBoxClientSecret
@@ -560,6 +563,7 @@
             this.radioButtonAuthWithCertificate.Tag = "NoTextSave";
             this.radioButtonAuthWithCertificate.Text = "Certificate:";
             this.radioButtonAuthWithCertificate.UseVisualStyleBackColor = true;
+            this.radioButtonAuthWithCertificate.CheckedChanged += new System.EventHandler(this.radioButtonAuthWithCertificate_CheckedChanged);
             // 
             // buttonLoadCertificate
             // 
@@ -646,6 +650,16 @@
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "Mailboxes";
             // 
+            // buttonSelectCertificate
+            // 
+            this.buttonSelectCertificate.Location = new System.Drawing.Point(257, 38);
+            this.buttonSelectCertificate.Name = "buttonSelectCertificate";
+            this.buttonSelectCertificate.Size = new System.Drawing.Size(52, 20);
+            this.buttonSelectCertificate.TabIndex = 37;
+            this.buttonSelectCertificate.Text = "Select...";
+            this.buttonSelectCertificate.UseVisualStyleBackColor = true;
+            this.buttonSelectCertificate.Click += new System.EventHandler(this.buttonSelectCertificate_Click);
+            // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -730,6 +744,7 @@
         private System.Windows.Forms.RadioButton radioButtonAuthWithCertificate;
         private System.Windows.Forms.Button buttonLoadCertificate;
         private System.Windows.Forms.GroupBox groupBox5;
+        private System.Windows.Forms.Button buttonSelectCertificate;
     }
 }
 
