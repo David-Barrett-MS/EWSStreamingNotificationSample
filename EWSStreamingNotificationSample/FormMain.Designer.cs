@@ -67,6 +67,7 @@
             this.timerMonitorConnections = new System.Windows.Forms.Timer(this.components);
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.buttonSelectCertificate = new System.Windows.Forms.Button();
             this.radioButtonAuthWithClientSecret = new System.Windows.Forms.RadioButton();
             this.textBoxAuthCertificate = new System.Windows.Forms.TextBox();
             this.textBoxClientSecret = new System.Windows.Forms.TextBox();
@@ -79,7 +80,6 @@
             this.radioButtonAuthOAuth = new System.Windows.Forms.RadioButton();
             this.radioButtonAuthBasic = new System.Windows.Forms.RadioButton();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
-            this.buttonSelectCertificate = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownTimeout)).BeginInit();
@@ -99,7 +99,7 @@
             this.groupBox1.Size = new System.Drawing.Size(614, 48);
             this.groupBox1.TabIndex = 0;
             this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "EWS Configuration";
+            this.groupBox1.Text = "EWS/Autodiscover Configuration";
             // 
             // textBoxEWSUri
             // 
@@ -125,7 +125,6 @@
             // radioButtonOffice365
             // 
             this.radioButtonOffice365.AutoSize = true;
-            this.radioButtonOffice365.Enabled = false;
             this.radioButtonOffice365.Location = new System.Drawing.Point(99, 19);
             this.radioButtonOffice365.Name = "radioButtonOffice365";
             this.radioButtonOffice365.Size = new System.Drawing.Size(74, 17);
@@ -520,6 +519,16 @@
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "Auth method";
             // 
+            // buttonSelectCertificate
+            // 
+            this.buttonSelectCertificate.Location = new System.Drawing.Point(257, 38);
+            this.buttonSelectCertificate.Name = "buttonSelectCertificate";
+            this.buttonSelectCertificate.Size = new System.Drawing.Size(52, 20);
+            this.buttonSelectCertificate.TabIndex = 37;
+            this.buttonSelectCertificate.Text = "Select...";
+            this.buttonSelectCertificate.UseVisualStyleBackColor = true;
+            this.buttonSelectCertificate.Click += new System.EventHandler(this.buttonSelectCertificate_Click);
+            // 
             // radioButtonAuthWithClientSecret
             // 
             this.radioButtonAuthWithClientSecret.AutoSize = true;
@@ -649,16 +658,6 @@
             this.groupBox5.TabIndex = 9;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "Mailboxes";
-            // 
-            // buttonSelectCertificate
-            // 
-            this.buttonSelectCertificate.Location = new System.Drawing.Point(257, 38);
-            this.buttonSelectCertificate.Name = "buttonSelectCertificate";
-            this.buttonSelectCertificate.Size = new System.Drawing.Size(52, 20);
-            this.buttonSelectCertificate.TabIndex = 37;
-            this.buttonSelectCertificate.Text = "Select...";
-            this.buttonSelectCertificate.UseVisualStyleBackColor = true;
-            this.buttonSelectCertificate.Click += new System.EventHandler(this.buttonSelectCertificate_Click);
             // 
             // FormMain
             // 

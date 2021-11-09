@@ -103,6 +103,11 @@ namespace EWSStreamingNotificationSample.Auth
             try
             {
                 _lastOAuthResult = Task.Run(async () => await OAuthHelper.GetApplicationToken(ApplicationId, TenantId, Certificate)).Result;
+                if (_lastOAuthResult == null)
+                {
+                    MessageBox.Show("Unable to acquire token", "Authentication failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 _logger?.Log($"Token obtained, expires {_lastOAuthResult.ExpiresOn}");
             }
             catch (Exception ex)

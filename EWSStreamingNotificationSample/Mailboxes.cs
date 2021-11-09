@@ -30,7 +30,7 @@ namespace EWSStreamingNotificationSample
         private ITraceListener _traceListener;
         private ClassLogger _logger;
         private bool _useGrouping = true;
-        private string _lastKnownAutodiscoverUrl = "";
+        //private string _lastKnownAutodiscoverUrl = "";
 
 
         public Mailboxes(ClassLogger Logger, ITraceListener TraceListener = null, Auth.CredentialHandler CredentialHandler = null)
@@ -58,7 +58,6 @@ namespace EWSStreamingNotificationSample
                 _credentialHandler = CredentialHandler;
                 _credentialHandler.ApplyCredentialsToAutodiscoverService(_autodiscover);
             }
-
         }
 
         static bool RedirectionCallback(string url)
@@ -90,7 +89,7 @@ namespace EWSStreamingNotificationSample
             set { _useGrouping = value; }
         }
 
-        public bool AddMailbox(string SMTPAddress, string EWSUrl = "")
+        public bool AddMailbox(string SMTPAddress, string AutodiscoverURL = "")
         {
             // Perform autodiscover for the mailbox and store the information
 
@@ -103,51 +102,41 @@ namespace EWSStreamingNotificationSample
                     return true;
             }
 
-            if (!String.IsNullOrEmpty(_lastKnownAutodiscoverUrl))
-                _autodiscover.Url = new Uri(_lastKnownAutodiscoverUrl);
-
             MailboxInfo info = null;
-            if (!_useGrouping && !String.IsNullOrEmpty(EWSUrl))
-            {
-                // No groups, and we have the EWS Url
-                info = new MailboxInfo(SMTPAddress, EWSUrl);                
-            }
-            else
-            {
-                // Retrieve the autodiscover information
-                _logger.Log($"Retrieving user settings for {SMTPAddress}");
-                GetUserSettingsResponse userSettings = null;
-                if (!String.IsNullOrEmpty(_lastKnownAutodiscoverUrl))
-                {
-                    // Try getting the user settings from our last known AutodiscoverUrl
-                    try
-                    {
-                        userSettings = _autodiscover.GetUserSettings(SMTPAddress, UserSettingName.InternalEwsUrl, UserSettingName.ExternalEwsUrl, UserSettingName.GroupingInformation);
-                    }
-                    catch
-                    {
-                        _lastKnownAutodiscoverUrl = "";
-                    }
-                }
-                
-                if (String.IsNullOrEmpty(_lastKnownAutodiscoverUrl))
-                {
-                    try
-                    {
-                        userSettings = GetUserSettings(SMTPAddress);
-                        if (_autodiscover.Url != null)
-                            _lastKnownAutodiscoverUrl = _autodiscover.Url.AbsoluteUri;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Log(String.Format("Failed to autodiscover for {0}: {1}", SMTPAddress, ex.Message));
-                        return false;
-                    }
-                }
 
-                // Store the autodiscover result, and check that we have what we need for subscriptions
-                info = new MailboxInfo(SMTPAddress, userSettings);
+            // Retrieve the autodiscover information
+            _logger.Log($"Retrieving user settings for {SMTPAddress}");
+            GetUserSettingsResponse userSettings = null;
+            if (!String.IsNullOrEmpty(AutodiscoverURL))
+            {
+                // Use the supplied Autodiscover URL
+                try
+                {
+                    _autodiscover.Url = new Uri(AutodiscoverURL);
+                    userSettings = _autodiscover.GetUserSettings(SMTPAddress, UserSettingName.InternalEwsUrl, UserSettingName.ExternalEwsUrl, UserSettingName.GroupingInformation);
+                }
+                catch
+                {
+                }
             }
+                
+            if (userSettings == null)
+            {
+                try
+                {
+                    // Try full autodiscover
+                    userSettings = GetUserSettings(SMTPAddress);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(String.Format("Failed to autodiscover for {0}: {1}", SMTPAddress, ex.Message));
+                    return false;
+                }
+            }
+
+            // Store the autodiscover result, and check that we have what we need for subscriptions
+            info = new MailboxInfo(SMTPAddress, userSettings);
+            
 
             if (!info.HaveSubscriptionInformation)
             {

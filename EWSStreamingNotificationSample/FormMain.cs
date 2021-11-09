@@ -584,16 +584,16 @@ namespace EWSStreamingNotificationSample
         {
             // Go through all the mailboxes and organise into groups based on grouping information
             _groups = new Dictionary<string, GroupInfo>();  // Clear any existing groups
-            string ewsUrl = textBoxEWSUri.Text;
-            if (radioButtonAutodiscover.Checked)
-                ewsUrl = "";
+            string autodiscoverUrl = "";
+            if (radioButtonOffice365.Checked)
+                autodiscoverUrl = "https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc";
             _mailboxes.GroupMailboxes = !radioButtonSpecificUri.Checked;
             _mailboxes.CredentialHandler = CredentialHandler();
             //Auth.CredentialHandler credentialHandler = CredentialHandler();
 
             foreach (string sMailbox in checkedListBoxMailboxes.CheckedItems)
             {
-                _mailboxes.AddMailbox(sMailbox, ewsUrl);
+                _mailboxes.AddMailbox(sMailbox, autodiscoverUrl);
                 MailboxInfo mailboxInfo = _mailboxes.Mailbox(sMailbox);
                 if (mailboxInfo != null)
                 {
