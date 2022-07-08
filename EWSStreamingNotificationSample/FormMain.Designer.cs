@@ -80,12 +80,21 @@
             this.radioButtonAuthOAuth = new System.Windows.Forms.RadioButton();
             this.radioButtonAuthBasic = new System.Windows.Forms.RadioButton();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.numericUpDownMaxMailboxesInGroup = new System.Windows.Forms.NumericUpDown();
+            this.groupBox6 = new System.Windows.Forms.GroupBox();
+            this.textBoxNumConnections = new System.Windows.Forms.TextBox();
+            this.textBoxNumSubscriptions = new System.Windows.Forms.TextBox();
+            this.label16 = new System.Windows.Forms.Label();
+            this.label15 = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericUpDownTimeout)).BeginInit();
             this.groupBox3.SuspendLayout();
             this.groupBox4.SuspendLayout();
             this.groupBox5.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownMaxMailboxesInGroup)).BeginInit();
+            this.groupBox6.SuspendLayout();
             this.SuspendLayout();
             // 
             // groupBox1
@@ -303,7 +312,7 @@
             this.groupBox2.Controls.Add(this.label5);
             this.groupBox2.Controls.Add(this.comboBoxSubscribeTo);
             this.groupBox2.Controls.Add(this.checkedListBoxEvents);
-            this.groupBox2.Location = new System.Drawing.Point(443, 205);
+            this.groupBox2.Location = new System.Drawing.Point(443, 233);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(611, 106);
             this.groupBox2.TabIndex = 7;
@@ -647,6 +656,8 @@
             // 
             // groupBox5
             // 
+            this.groupBox5.Controls.Add(this.label4);
+            this.groupBox5.Controls.Add(this.numericUpDownMaxMailboxesInGroup);
             this.groupBox5.Controls.Add(this.checkedListBoxMailboxes);
             this.groupBox5.Controls.Add(this.buttonSelectAllMailboxes);
             this.groupBox5.Controls.Add(this.buttonDeselectAllMailboxes);
@@ -654,16 +665,98 @@
             this.groupBox5.Controls.Add(this.buttonEditMailboxes);
             this.groupBox5.Location = new System.Drawing.Point(443, 66);
             this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(278, 133);
+            this.groupBox5.Size = new System.Drawing.Size(278, 161);
             this.groupBox5.TabIndex = 9;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "Mailboxes";
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(43, 135);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(170, 13);
+            this.label4.TabIndex = 20;
+            this.label4.Text = "Max number of mailboxes in group:";
+            // 
+            // numericUpDownMaxMailboxesInGroup
+            // 
+            this.numericUpDownMaxMailboxesInGroup.Location = new System.Drawing.Point(219, 133);
+            this.numericUpDownMaxMailboxesInGroup.Maximum = new decimal(new int[] {
+            200,
+            0,
+            0,
+            0});
+            this.numericUpDownMaxMailboxesInGroup.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numericUpDownMaxMailboxesInGroup.Name = "numericUpDownMaxMailboxesInGroup";
+            this.numericUpDownMaxMailboxesInGroup.Size = new System.Drawing.Size(53, 20);
+            this.numericUpDownMaxMailboxesInGroup.TabIndex = 19;
+            this.numericUpDownMaxMailboxesInGroup.Value = new decimal(new int[] {
+            200,
+            0,
+            0,
+            0});
+            this.numericUpDownMaxMailboxesInGroup.ValueChanged += new System.EventHandler(this.numericUpDownMaxMailboxesInGroup_ValueChanged);
+            // 
+            // groupBox6
+            // 
+            this.groupBox6.Controls.Add(this.textBoxNumConnections);
+            this.groupBox6.Controls.Add(this.textBoxNumSubscriptions);
+            this.groupBox6.Controls.Add(this.label16);
+            this.groupBox6.Controls.Add(this.label15);
+            this.groupBox6.Location = new System.Drawing.Point(793, 66);
+            this.groupBox6.Name = "groupBox6";
+            this.groupBox6.Size = new System.Drawing.Size(261, 67);
+            this.groupBox6.TabIndex = 10;
+            this.groupBox6.TabStop = false;
+            this.groupBox6.Text = "Statistics";
+            // 
+            // textBoxNumConnections
+            // 
+            this.textBoxNumConnections.Location = new System.Drawing.Point(140, 39);
+            this.textBoxNumConnections.Name = "textBoxNumConnections";
+            this.textBoxNumConnections.ReadOnly = true;
+            this.textBoxNumConnections.Size = new System.Drawing.Size(100, 20);
+            this.textBoxNumConnections.TabIndex = 7;
+            this.textBoxNumConnections.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // textBoxNumSubscriptions
+            // 
+            this.textBoxNumSubscriptions.Location = new System.Drawing.Point(140, 13);
+            this.textBoxNumSubscriptions.Name = "textBoxNumSubscriptions";
+            this.textBoxNumSubscriptions.ReadOnly = true;
+            this.textBoxNumSubscriptions.Size = new System.Drawing.Size(100, 20);
+            this.textBoxNumSubscriptions.TabIndex = 6;
+            this.textBoxNumSubscriptions.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label16
+            // 
+            this.label16.AutoSize = true;
+            this.label16.Location = new System.Drawing.Point(6, 42);
+            this.label16.Name = "label16";
+            this.label16.Size = new System.Drawing.Size(120, 13);
+            this.label16.TabIndex = 5;
+            this.label16.Text = "Number of connections:";
+            // 
+            // label15
+            // 
+            this.label15.AutoSize = true;
+            this.label15.Location = new System.Drawing.Point(6, 16);
+            this.label15.Name = "label15";
+            this.label15.Size = new System.Drawing.Size(123, 13);
+            this.label15.TabIndex = 4;
+            this.label15.Text = "Number of subscriptions:";
             // 
             // FormMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1066, 581);
+            this.Controls.Add(this.groupBox6);
             this.Controls.Add(this.groupBox5);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.groupBox2);
@@ -686,6 +779,10 @@
             this.groupBox4.ResumeLayout(false);
             this.groupBox4.PerformLayout();
             this.groupBox5.ResumeLayout(false);
+            this.groupBox5.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numericUpDownMaxMailboxesInGroup)).EndInit();
+            this.groupBox6.ResumeLayout(false);
+            this.groupBox6.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -744,6 +841,13 @@
         private System.Windows.Forms.Button buttonLoadCertificate;
         private System.Windows.Forms.GroupBox groupBox5;
         private System.Windows.Forms.Button buttonSelectCertificate;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.NumericUpDown numericUpDownMaxMailboxesInGroup;
+        private System.Windows.Forms.GroupBox groupBox6;
+        private System.Windows.Forms.TextBox textBoxNumConnections;
+        private System.Windows.Forms.TextBox textBoxNumSubscriptions;
+        private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.Label label15;
     }
 }
 

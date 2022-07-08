@@ -22,25 +22,23 @@ namespace EWSStreamingNotificationSample
     public class GroupInfo
     {
         private string _name = "";
-        private string _primaryMailbox = "";
         private List<String> _mailboxes;
-        private string _xBackendOverrideCookie = "";
-        //private List<StreamingSubscriptionConnection> _streamingConnection;
+        private static int _maxGroupSize = 200;
+        //private string _xBackendOverrideCookie = "";
         private ExchangeService _exchangeService = null;
         private ITraceListener _traceListener = null;
         private string _ewsUrl = "";
         private ExchangeVersion _exchangeVersion = ExchangeVersion.Exchange2016;
         private Auth.CredentialHandler _credentialHandler;
 
-        public GroupInfo(string Name, string PrimaryMailbox, string EWSUrl, Auth.CredentialHandler credentialHandler, ITraceListener TraceListener = null)
+        public GroupInfo(string Name, string FirstMailbox, string EWSUrl, Auth.CredentialHandler credentialHandler, ITraceListener TraceListener = null)
         {
             // initialise the group information
             _name = Name;
-            _primaryMailbox = PrimaryMailbox;
             _ewsUrl = EWSUrl;
             _traceListener = TraceListener;
             _mailboxes = new List<String>();
-            _mailboxes.Add(PrimaryMailbox);
+            _mailboxes.Add(FirstMailbox);
             _credentialHandler = credentialHandler;
         }
 
@@ -55,20 +53,16 @@ namespace EWSStreamingNotificationSample
             set { _exchangeVersion = value; }
         }
 
-        public string PrimaryMailbox
+        public static int MaxGroupSize
         {
-            get { return _primaryMailbox; }
+            get { return _maxGroupSize; }
             set
             {
-                // If the primary mailbox changes, we need to ensure that it is in the mailbox list also
-                _primaryMailbox = value;
-                if (!_mailboxes.Contains(_primaryMailbox))
-                    _mailboxes.Add(_primaryMailbox);
+                if (value > 0 && value < 201)
+                    _maxGroupSize = value;
+                else
+                    throw new ArgumentException("Group size must be between 1 and 200");
             }
-        }
-
-        public void ApplyHeadersToConnection(StreamingSubscriptionConnection connection)
-        {
         }
 
         public ExchangeService ExchangeService
@@ -81,9 +75,7 @@ namespace EWSStreamingNotificationSample
                 // Create exchange service for this group
                 _exchangeService = new ExchangeService(_exchangeVersion);
                 _credentialHandler.ApplyCredentialsToExchangeService(_exchangeService);
-                _exchangeService.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, _primaryMailbox);
 
-                _exchangeService.HttpHeaders.Add("X-AnchorMailbox", _primaryMailbox);
                 _exchangeService.HttpHeaders.Add("X-PreferServerAffinity", "true");
                 _exchangeService.HttpHeaders.Add("return-client-request-id", "true");
 
@@ -98,43 +90,9 @@ namespace EWSStreamingNotificationSample
             }
         }
 
-        public void SetXAnchorToPrimary()
-        {
-            if (_exchangeService == null)
-                return;
-
-            if (_exchangeService.HttpHeaders.ContainsKey("X-AnchorMailbox"))
-                _exchangeService.HttpHeaders.Remove("X-AnchorMailbox");
-            _exchangeService.HttpHeaders.Add("X-AnchorMailbox", _primaryMailbox);
-        }
-
         public List<String> Mailboxes
         {
             get { return _mailboxes; }
-        }
-
-        public int NumberOfGroups
-        {
-            // The maximum number of mailboxes in a group shouldn't exceed 200, which means that this group may consist
-            // of several groups. 
-            get { return ((_mailboxes.Count / 200))+1; }
-        }
-
-        public List<List<String>> MailboxesGrouped
-        {
-            get
-            {
-                // Return a list of lists (the group split into lists of 200)
-                // This isn't implemented, and would need completion for applications that subscribe to
-                // large numbers of mailboxes
-                List<List<String>> groupedMailboxes = new List<List<String>>();
-                for (int i=0; i<NumberOfGroups; i++)
-                {
-                    List<String> mailboxes = _mailboxes.GetRange(i * 200, 200);
-                    groupedMailboxes.Add(mailboxes);
-                }
-                return groupedMailboxes;
-            }
         }
 
         private void SetClientRequestId(ExchangeService exchangeService)
@@ -145,7 +103,11 @@ namespace EWSStreamingNotificationSample
         }
 
         private StreamingSubscription AddSubscription(string Mailbox,
-            ref Dictionary<string, StreamingSubscription> SubscriptionList, EventType[] SubscribeEvents, FolderId[] SubscribeFolders = null, ExchangeService exchange = null)
+            ref Dictionary<string,StreamingSubscription> SubscriptionList,
+            EventType[] SubscribeEvents,
+            FolderId[] SubscribeFolders = null,
+            ExchangeService exchange = null,
+            string AnchorMailbox = null)
         {
             // Return the subscription, or create a new one if we don't already have one
 
@@ -154,7 +116,13 @@ namespace EWSStreamingNotificationSample
 
             if (exchange==null)
                 exchange = ExchangeService;
+            if (String.IsNullOrEmpty(AnchorMailbox))
+                AnchorMailbox = Mailbox;
+
             exchange.ImpersonatedUserId = new ImpersonatedUserId(ConnectingIdType.SmtpAddress, Mailbox);
+            if (exchange.HttpHeaders.ContainsKey("X-AnchorMailbox"))
+                exchange.HttpHeaders.Remove("X-AnchorMailbox");
+            exchange.HttpHeaders.Add("X-AnchorMailbox", AnchorMailbox);
 
             //FolderId[] selectedFolders = SelectedFolders();
             StreamingSubscription subscription;
@@ -166,78 +134,104 @@ namespace EWSStreamingNotificationSample
             SubscriptionList.Add(Mailbox, subscription);
 
 
-            if (_primaryMailbox.Equals(Mailbox))
-            {
-                // Check for the X-BackendOverride cookie
-                // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
-                // We don't actually need this as we rely on the ExchangeService object to keep track of cookies
+            //if (_primaryMailbox.Equals(Mailbox))
+            //{
+            //    // Check for the X-BackendOverride cookie
+            //    // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
+            //    // We don't actually need this as we rely on the ExchangeService object to keep track of cookies
 
-                System.Net.CookieCollection cookies = exchange.CookieContainer.GetCookies(new Uri("https://outlook.office365.com"));
-                _xBackendOverrideCookie = $"X-BackEndOverrideCookie={cookies["X-BackEndOverrideCookie"].Value}";
-            }
+            //    System.Net.CookieCollection cookies = exchange.CookieContainer.GetCookies(new Uri("https://outlook.office365.com"));
+            //    _xBackendOverrideCookie = $"X-BackEndOverrideCookie={cookies["X-BackEndOverrideCookie"].Value}";
+            //}
             return subscription;
         }
 
+        // Creates the streaming connection for this group with all the subscriptions
+        // If there are too many subscriptions for a single connection, SubscriptionIndex will return a positive number
+        // and the caller should repeatedly call this method until 0 is returned
         public StreamingSubscriptionConnection AddGroupSubscriptions(
             ref Dictionary<string, StreamingSubscriptionConnection> Connections,
             ref Dictionary<string, StreamingSubscription> SubscriptionList,
             EventType[] SubscribeEvents,
             FolderId[] SubscribeFolders,
             ClassLogger Logger,
+            ref int SubscriptionIndex,
             int TimeOut = 30)
         {
-            if (Connections.ContainsKey(_name))
+
+            if (SubscriptionIndex == 0)
             {
-                foreach (StreamingSubscription subscription in Connections[_name].CurrentSubscriptions)
+                // Sort the mailboxes alphabetically
+                _mailboxes.Sort();
+
+                // Clear out any old connections
+                List<string> activeConnections = Connections.Keys.ToList<string>();
+                foreach (string connectionName in activeConnections)
                 {
-                    try
+                    if (connectionName.StartsWith(_name))
                     {
-                        subscription.Unsubscribe();
+                        foreach (StreamingSubscription subscription in Connections[connectionName].CurrentSubscriptions)
+                        {
+                            try
+                            {
+                                subscription.Unsubscribe();
+                            }
+                            catch { }
+                        }
+                        try
+                        {
+                            if (Connections[connectionName].IsOpen)
+                                Connections[connectionName].Close();
+                        }
+                        catch { }
+                        Connections.Remove(connectionName);
                     }
-                    catch { }
                 }
-                try
-                {
-                    if (Connections[_name].IsOpen)
-                        Connections[_name].Close();
-                }
-                catch { }
-                Connections.Remove(_name);
             }
 
             StreamingSubscriptionConnection groupConnection = null;
+
             try
             {
-                // Create the subscription to the primary mailbox, then create the subscription connection
-                if (SubscriptionList.ContainsKey(_primaryMailbox))
-                    SubscriptionList.Remove(_primaryMailbox);
-                StreamingSubscription subscription = AddSubscription(_primaryMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
+                // The first mailbox of the group is what we set X-AnchorMailbox to for this connection
+                string anchorMailbox = _mailboxes[SubscriptionIndex];
+                if (SubscriptionList.ContainsKey(anchorMailbox))
+                    SubscriptionList.Remove(anchorMailbox);
+                StreamingSubscription subscription = AddSubscription(anchorMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
+
+                string groupName = $"{_name}{anchorMailbox}";
                 groupConnection = new StreamingSubscriptionConnection(subscription.Service, TimeOut);
-                Connections.Add(_name, groupConnection);
+                Connections.Add(groupName, groupConnection);
 
-                //SubscribeConnectionEvents(groupConnection);
                 groupConnection.AddSubscription(subscription);
-                Logger.Log($"{_primaryMailbox} (primary mailbox) subscription created in group {_name}");
+                Logger.Log($"{anchorMailbox} (anchor mailbox) subscription created in group {groupName}");
 
-                // Now add any further subscriptions in this group
-                foreach (string sMailbox in _mailboxes)
+                int i = 1;
+                if (_mailboxes.Count <= SubscriptionIndex + i)
+                    i = 0;
+                while (i < _maxGroupSize && i>0)
                 {
-                    if (!sMailbox.Equals(_primaryMailbox))
+                    string sMailbox = _mailboxes[SubscriptionIndex + i++];
+                    try
                     {
-                        try
-                        {
-                            if (SubscriptionList.ContainsKey(sMailbox))
-                                SubscriptionList.Remove(sMailbox);
-                            subscription = AddSubscription(sMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
-                            groupConnection.AddSubscription(subscription);
-                            Logger.Log($"{sMailbox} subscription created in group {_name}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Log(String.Format("ERROR when subscribing {0} in group {1}: {2}", sMailbox, _name, ex.Message));
-                        }
+                        if (SubscriptionList.ContainsKey(sMailbox))
+                            SubscriptionList.Remove(sMailbox);
+                        subscription = AddSubscription(sMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders, null, anchorMailbox);
+                        groupConnection.AddSubscription(subscription);
+                        Logger.Log($"{sMailbox} subscription created in group {groupName}");
                     }
+                    catch (Exception ex)
+                    {
+                        Logger.Log($"ERROR when subscribing {sMailbox} in group {groupName}: {ex.Message}");
+                    }
+                    if (SubscriptionIndex + i >= _mailboxes.Count)
+                        i = 0;
                 }
+                if (i > 0)
+                    SubscriptionIndex = SubscriptionIndex + i;
+                else
+                    SubscriptionIndex = 0;
+
             }
             catch (Exception ex)
             {

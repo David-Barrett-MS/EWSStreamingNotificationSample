@@ -90,12 +90,16 @@ namespace EWSStreamingNotificationSample.Auth
             try
             {
                 _lastOAuthResult = Task.Run(async () => await OAuthHelper.GetApplicationToken(ApplicationId, TenantId, ClientSecret)).Result;
-                _logger?.Log($"Token obtained, expires {_lastOAuthResult.ExpiresOn}");
+                if (_lastOAuthResult != null)
+                {
+                    _logger?.Log($"Token obtained, expires {_lastOAuthResult.ExpiresOn}");
+                    return;
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Unable to acquire token", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            }            
         }
 
         public void GetAppTokenWithCertificate()

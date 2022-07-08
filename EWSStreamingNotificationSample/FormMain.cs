@@ -55,6 +55,7 @@ namespace EWSStreamingNotificationSample
             ServicePointManager.DefaultConnectionLimit = 255;
             _logger.Log("Default connection limit increased to 255");
 
+            // Set default UI options
             comboBoxSubscribeTo.SelectedIndex = 0; // Select All Folders
             buttonUnsubscribe.Enabled = false;
             checkBoxSelectAll.CheckState = CheckState.Checked;
@@ -114,6 +115,7 @@ namespace EWSStreamingNotificationSample
 
         void _logger_LogAdded(object sender, LoggerEventArgs a)
         {
+            // Show the log in the events ListBox
             try
             {
                 if (listBoxEvents.InvokeRequired)
@@ -140,6 +142,10 @@ namespace EWSStreamingNotificationSample
         private ExchangeService ExchangeServiceForMailboxAccess(MailboxInfo Mailbox)
         {
             // Create an ExchangeService object for mailbox access (used to retrieve further information about notified items)
+            // We need to do this because ExchangeService is not thread safe
+
+            if (Mailbox == null)
+                return null;
 
             ExchangeService mailboxAccessService = new ExchangeService(ExchangeVersion.Exchange2016);
             CredentialHandler().ApplyCredentialsToExchangeService(mailboxAccessService);
@@ -211,7 +217,7 @@ namespace EWSStreamingNotificationSample
 
         void ShowMoreInfo(object e)
         {
-            // Get more info for the given item.  This will run on it's own thread
+            // Get more info for the given item or folder.  This will run on it's own thread
             // so that the main program can continue as usual (we won't hold anything up)
 
             NotificationInfo n = (NotificationInfo)e;
@@ -231,23 +237,31 @@ namespace EWSStreamingNotificationSample
 
         private string MoreItemInfo(ItemEvent e, ExchangeService service)
         {
+            // Retrieve some more information about the specified Item
+
             string sMoreInfo = "";
-            if (e.EventType == EventType.Deleted)
+
+            if (service != null)
             {
-                // We cannot get more info for a deleted item by binding to it, so skip item details
-            }
-            else
-                sMoreInfo += "Item subject=" + GetItemInfo(e.ItemId, service);
-            if (e.ParentFolderId != null)
-            {
-                if (!String.IsNullOrEmpty(sMoreInfo)) sMoreInfo += ", ";
-                sMoreInfo += "Parent Folder Name=" + GetFolderName(e.ParentFolderId, service);
+                if (e.EventType == EventType.Deleted)
+                {
+                    // We cannot get more info for a deleted item by binding to it, so skip item details
+                }
+                else
+                    sMoreInfo += "Item subject=" + GetItemInfo(e.ItemId, service);
+                if (e.ParentFolderId != null)
+                {
+                    if (!String.IsNullOrEmpty(sMoreInfo)) sMoreInfo += ", ";
+                    sMoreInfo += "Parent Folder Name=" + GetFolderName(e.ParentFolderId, service);
+                }
             }
             return sMoreInfo;
         }
 
         private string MoreFolderInfo(FolderEvent e, ExchangeService service)
         {
+            // Retrieve some more information about the specified folder
+
             string sMoreInfo = "";
             if (e.EventType == EventType.Deleted)
             {
@@ -304,6 +318,8 @@ namespace EWSStreamingNotificationSample
 
         private string GetAttendees(AttendeeCollection attendees)
         {
+            // Read and return the attendees from the provided AttendeeCollection
+
             if (attendees.Count == 0) return "none";
 
             string sAttendees = "";
@@ -333,6 +349,8 @@ namespace EWSStreamingNotificationSample
 
         private void ShowEvent(string eventDetails)
         {
+            // Show the given event in the UI
+
             try
             {
                 if (listBoxEvents.InvokeRequired)
@@ -363,7 +381,8 @@ namespace EWSStreamingNotificationSample
 
         private EventType[] SelectedEvents()
         {
-            // Read the selected events
+            // Read the selected events and return as an array
+
             EventType[] events = null;
             if (comboBoxSubscribeTo.InvokeRequired)
             {
@@ -415,6 +434,9 @@ namespace EWSStreamingNotificationSample
 
         private void buttonSubscribe_Click(object sender, EventArgs e)
         {
+            // Create the subscriptions and connect
+
+            _credentialHandler = null; // We do this in case the credentials have been changed since last run
             if (radioButtonAuthOAuth.Checked)
                 CredentialHandler().AcquireToken();
             CreateGroups();
@@ -432,6 +454,8 @@ namespace EWSStreamingNotificationSample
 
         private FolderId[] SelectedFolders()
         {
+            // Return the currently selected folders to subscribe to
+
             if (comboBoxSubscribeTo.SelectedIndex < 1)
                 return null; // Subscribe to all folders
 
@@ -499,6 +523,7 @@ namespace EWSStreamingNotificationSample
 
         void connection_OnSubscriptionError(object sender, SubscriptionErrorEventArgs args)
         {
+            // Handle OnSubscriptionError event
             try
             {
                 _logger.Log(String.Format("OnSubscriptionError received for {0}: {1}", args.Subscription.Service.ImpersonatedUserId.Id, args.Exception.Message));
@@ -511,6 +536,7 @@ namespace EWSStreamingNotificationSample
 
         void connection_OnDisconnect(object sender, SubscriptionErrorEventArgs args)
         {
+            // Handle OnDisconnect event
             try
             {
                 if (args.Subscription != null)
@@ -525,6 +551,8 @@ namespace EWSStreamingNotificationSample
 
         void connection_OnNotificationEvent(object sender, NotificationEventArgs args)
         {
+            // Handle OnNotification event
+
             foreach (NotificationEvent e in args.Events)
             {
                 ProcessNotification(e, args.Subscription);
@@ -533,19 +561,46 @@ namespace EWSStreamingNotificationSample
 
         private void AddGroupSubscriptions(string sGroup)
         {
+            // Configure the subscriptions for the given group
+            // If SubscriptionIndex returns greater than 0, then more groups need to be created.
+
+            int SubscriptionIndex = 0;
             if (_groups.ContainsKey(sGroup))
-                _groups[sGroup].AddGroupSubscriptions(ref _connections, ref _subscriptions, SelectedEvents(), SelectedFolders(), _logger);
+                do
+                {
+                    _groups[sGroup].AddGroupSubscriptions(ref _connections,
+                        ref _subscriptions,
+                        SelectedEvents(),
+                        SelectedFolders(),
+                        _logger,
+                        ref SubscriptionIndex);
+                } while (SubscriptionIndex > 0);
+        }
+
+        private void UpdateStats()
+        {
+            // Show current connections and subscriptions
+
+            textBoxNumConnections.Text = $"{_connections.Count}";
+            textBoxNumConnections.Refresh();
+            textBoxNumSubscriptions.Text = $"{_subscriptions.Count}";
+            textBoxNumSubscriptions.Refresh();
         }
 
         private void AddAllSubscriptions()
         {
+            // Subscribe to all the subscriptions
+
             if (_subscriptions == null)
                 _subscriptions = new Dictionary<string, StreamingSubscription>();
             if (_connections == null)
                 _connections = new Dictionary<string, StreamingSubscriptionConnection>();
 
             foreach (string sGroup in _groups.Keys)
+            {
                 AddGroupSubscriptions(sGroup);
+                UpdateStats();
+            }
 
             // Now we build a reverse mapping so that we know which subscription Id is for which mailbox
             _subscriptionIdToMailboxMapping = new Dictionary<string, string>();
@@ -555,6 +610,8 @@ namespace EWSStreamingNotificationSample
 
         private Auth.CredentialHandler CredentialHandler()
         {
+            // Instantiate the relevant CredentialHandler if not already done
+
             if (_credentialHandler != null)
                 return _credentialHandler;
 
@@ -601,26 +658,13 @@ namespace EWSStreamingNotificationSample
                     if (_groups.ContainsKey(mailboxInfo.GroupName))
                     {
                         groupInfo = _groups[mailboxInfo.GroupName];
+                        groupInfo.Mailboxes.Add(sMailbox);
                     }
                     else
                     {
                         groupInfo = new GroupInfo(mailboxInfo.GroupName, mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl, _credentialHandler, _traceListener);
                         _groups.Add(mailboxInfo.GroupName, groupInfo);
                     }
-                    if (groupInfo.Mailboxes.Count > 199)
-                    {
-                        // We already have enough mailboxes in this group, so we rename it and create a new one
-                        // Renaming it means that we can still put new mailboxes into the correct group based on GroupingInformation
-                        int i = 1;
-                        while (_groups.ContainsKey(String.Format("{0}{1}", groupInfo.Name, i)))
-                            i++;
-                        _groups.Remove(groupInfo.Name);
-                        _groups.Add(String.Format("{0}{1}", groupInfo.Name, i), groupInfo);
-                        groupInfo = new GroupInfo(mailboxInfo.GroupName, mailboxInfo.SMTPAddress, mailboxInfo.EwsUrl, _credentialHandler, _traceListener);
-                        _groups.Add(mailboxInfo.GroupName, groupInfo);
-                    }
-
-                    groupInfo.Mailboxes.Add(sMailbox);
                 }
             }
         }
@@ -692,18 +736,16 @@ namespace EWSStreamingNotificationSample
 
         private void CloseConnections()
         {
-            foreach (StreamingSubscriptionConnection connection in _connections.Values)
+            // Close and dispose all connections
+
+            List<string> connectionNames = _connections.Keys.ToList<string>();
+            foreach (string connectionName in connectionNames)
             {
+                StreamingSubscriptionConnection connection = _connections[connectionName];
                 if (connection.IsOpen) connection.Close();
+                connection.Dispose();
+                _connections.Remove(connectionName);
             }
-        }
-
-        void _connection_OnSubscriptionError(object sender, SubscriptionErrorEventArgs args)
-        {
-            if (args.Exception == null)
-                return;
-
-            _logger.Log("Subscription error: " + args.Exception.Message);
         }
 
         private void comboBoxSubscribeTo_SelectedIndexChanged(object sender, EventArgs e)
@@ -776,6 +818,7 @@ namespace EWSStreamingNotificationSample
             timerMonitorConnections.Stop();
             CloseConnections();
             UnsubscribeAll();
+            UpdateStats();
             _reconnect = false;
             buttonUnsubscribe.Enabled = false;
             buttonSubscribe.Enabled = true;
@@ -915,5 +958,12 @@ namespace EWSStreamingNotificationSample
         {
             UpdateAuthUI();
         }
+
+        private void numericUpDownMaxMailboxesInGroup_ValueChanged(object sender, EventArgs e)
+        {
+            GroupInfo.MaxGroupSize = (int)numericUpDownMaxMailboxesInGroup.Value;
+        }
+
+
     }
 }
