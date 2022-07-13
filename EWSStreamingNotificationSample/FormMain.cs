@@ -40,6 +40,7 @@ namespace EWSStreamingNotificationSample
         private bool _reconnect = false;
         private Object _reconnectLock = new Object();
         private Auth.CredentialHandler _credentialHandler = null;
+        private long _notificationReceivedCount = 0;
 
         public FormMain()
         {
@@ -168,6 +169,8 @@ namespace EWSStreamingNotificationSample
             if (_subscriptionIdToMailboxMapping.ContainsKey(Subscription.Id))
                 sMailbox = _subscriptionIdToMailboxMapping[Subscription.Id];
 
+            _notificationReceivedCount++;
+
             string sEvent = sMailbox + ": ";
 
             if (e is ItemEvent)
@@ -207,9 +210,10 @@ namespace EWSStreamingNotificationSample
                 }
             }
             catch { }
+            UpdateStats();
 
             if (checkBoxQueryMore.Checked)
-                return;
+                return; // The event is being handled in a worker thread
 
             ShowEvent(sEvent);
         }
@@ -435,6 +439,7 @@ namespace EWSStreamingNotificationSample
         {
             // Create the subscriptions and connect
 
+            _notificationReceivedCount = 0;  // Reset the counter on start
             _credentialHandler = null; // We do this in case the credentials have been changed since last run
             if (radioButtonAuthOAuth.Checked)
                 CredentialHandler().AcquireToken();
@@ -526,6 +531,14 @@ namespace EWSStreamingNotificationSample
             try
             {
                 _logger.Log(String.Format("OnSubscriptionError received for {0}: {1}", args.Subscription.Service.ImpersonatedUserId.Id, args.Exception.Message));
+                if (args.Exception.Message.Contains("The subscription must be recreated."))
+                {
+                    // This subscription should be recreated.
+                    // https://docs.microsoft.com/en-us/exchange/client-developer/exchange-web-services/handling-notification-related-errors-in-ews-in-exchange#recovering-from-lost-subscriptions
+                    _subscriptions.Remove(args.Subscription.Service.ImpersonatedUserId.Id);
+                    _subscriptionIdToMailboxMapping.Remove(args.Subscription.Id);
+                    _reconnect = true;  // This is a crude way to trigger resubscribe (it forces reconnect for all)
+                }
             }
             catch
             {
@@ -580,10 +593,32 @@ namespace EWSStreamingNotificationSample
         {
             // Show current connections and subscriptions
 
-            textBoxNumConnections.Text = $"{_connections.Count}";
-            textBoxNumConnections.Refresh();
-            textBoxNumSubscriptions.Text = $"{_subscriptions.Count}";
-            textBoxNumSubscriptions.Refresh();
+            Action action = new Action(() =>
+            {
+                textBoxNumConnections.Text = $"{_connections.Count}";
+            });
+            if (textBoxNumConnections.InvokeRequired)
+                textBoxNumConnections.Invoke(action);
+            else
+                action();
+
+            action = new Action(() =>
+            {
+                textBoxNumSubscriptions.Text = $"{_subscriptions.Count}";
+            });
+            if (textBoxNumSubscriptions.InvokeRequired)
+                textBoxNumSubscriptions.Invoke(action);
+            else
+                action();
+
+            action = new Action(() =>
+            {
+                textBoxNotificationCount.Text = $"{_notificationReceivedCount}";
+            });
+            if (textBoxNotificationCount.InvokeRequired)
+                textBoxNotificationCount.Invoke(action);
+            else
+                action();
         }
 
         private void AddAllSubscriptions()
@@ -705,7 +740,7 @@ namespace EWSStreamingNotificationSample
                             if (radioButtonAuthOAuth.Checked)
                             {
                                 // If we are using OAuth, we need to ensure that the token is still valid
-                                _logger.Log($"Updating OAuth token on all subscriptions in group {sConnectionGroup}");
+                                _logger.Log($"Applying OAuth token to all subscriptions in group {sConnectionGroup}");
                                 foreach (StreamingSubscription subscription in connection.CurrentSubscriptions)
                                     CredentialHandler().ApplyCredentialsToExchangeService(subscription.Service);
                             }
@@ -718,7 +753,6 @@ namespace EWSStreamingNotificationSample
                             {
                                 // Try recreating this group                                    
                                 groupsToRecreate.Add(sConnectionGroup);
-                                //AddGroupSubscriptions(sConnectionGroup);  This won't currently work as it would involve modifying our _connections collection while reading it
                             }
                             else
                                 _logger.Log($"Failed to reopen connection: {ex.Message}");
@@ -795,13 +829,12 @@ namespace EWSStreamingNotificationSample
             if (_subscriptions == null)
                 return;
 
-            for (int i = _subscriptions.Keys.Count - 1; i>=0; i-- )
+            List<string> subscriptionKeys = _subscriptions.Keys.ToList<string>();
+            foreach (string sMailbox in subscriptionKeys)
             {
-                string sMailbox = _subscriptions.Keys.ElementAt<string>(i);
-                StreamingSubscription subscription = _subscriptions[sMailbox];
                 try
                 {
-                    subscription.Unsubscribe();
+                    _subscriptions[sMailbox].Unsubscribe();
                     _logger.Log(String.Format("Unsubscribed from {0}", sMailbox));
                 }
                 catch (Exception ex)
@@ -838,12 +871,12 @@ namespace EWSStreamingNotificationSample
 
         private void timerMonitorConnections_Tick(object sender, EventArgs e)
         {
-            if (!_reconnect)
-                return;
-
-            timerMonitorConnections.Stop();
-            ReconnectToSubscriptions();
-            timerMonitorConnections.Start();
+            if (_reconnect)
+            {
+                timerMonitorConnections.Stop();
+                ReconnectToSubscriptions();
+                timerMonitorConnections.Start();
+            }
         }
 
         private void FormMain_FormClosing(object sender, FormClosingEventArgs e)

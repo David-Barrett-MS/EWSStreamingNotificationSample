@@ -83,6 +83,8 @@
             this.label4 = new System.Windows.Forms.Label();
             this.numericUpDownMaxMailboxesInGroup = new System.Windows.Forms.NumericUpDown();
             this.groupBox6 = new System.Windows.Forms.GroupBox();
+            this.textBoxNotificationCount = new System.Windows.Forms.TextBox();
+            this.label9 = new System.Windows.Forms.Label();
             this.textBoxNumConnections = new System.Windows.Forms.TextBox();
             this.textBoxNumSubscriptions = new System.Windows.Forms.TextBox();
             this.label16 = new System.Windows.Forms.Label();
@@ -488,7 +490,7 @@
             // 
             // timerMonitorConnections
             // 
-            this.timerMonitorConnections.Interval = 5000;
+            this.timerMonitorConnections.Interval = 1000;
             this.timerMonitorConnections.Tick += new System.EventHandler(this.timerMonitorConnections_Tick);
             // 
             // groupBox3
@@ -704,20 +706,40 @@
             // 
             // groupBox6
             // 
+            this.groupBox6.Controls.Add(this.textBoxNotificationCount);
+            this.groupBox6.Controls.Add(this.label9);
             this.groupBox6.Controls.Add(this.textBoxNumConnections);
             this.groupBox6.Controls.Add(this.textBoxNumSubscriptions);
             this.groupBox6.Controls.Add(this.label16);
             this.groupBox6.Controls.Add(this.label15);
             this.groupBox6.Location = new System.Drawing.Point(793, 66);
             this.groupBox6.Name = "groupBox6";
-            this.groupBox6.Size = new System.Drawing.Size(261, 67);
+            this.groupBox6.Size = new System.Drawing.Size(261, 98);
             this.groupBox6.TabIndex = 10;
             this.groupBox6.TabStop = false;
             this.groupBox6.Text = "Statistics";
             // 
+            // textBoxNotificationCount
+            // 
+            this.textBoxNotificationCount.Location = new System.Drawing.Point(155, 71);
+            this.textBoxNotificationCount.Name = "textBoxNotificationCount";
+            this.textBoxNotificationCount.ReadOnly = true;
+            this.textBoxNotificationCount.Size = new System.Drawing.Size(100, 20);
+            this.textBoxNotificationCount.TabIndex = 9;
+            this.textBoxNotificationCount.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(6, 74);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(137, 13);
+            this.label9.TabIndex = 8;
+            this.label9.Text = "Total notifications received:";
+            // 
             // textBoxNumConnections
             // 
-            this.textBoxNumConnections.Location = new System.Drawing.Point(140, 39);
+            this.textBoxNumConnections.Location = new System.Drawing.Point(155, 45);
             this.textBoxNumConnections.Name = "textBoxNumConnections";
             this.textBoxNumConnections.ReadOnly = true;
             this.textBoxNumConnections.Size = new System.Drawing.Size(100, 20);
@@ -726,7 +748,7 @@
             // 
             // textBoxNumSubscriptions
             // 
-            this.textBoxNumSubscriptions.Location = new System.Drawing.Point(140, 13);
+            this.textBoxNumSubscriptions.Location = new System.Drawing.Point(155, 19);
             this.textBoxNumSubscriptions.Name = "textBoxNumSubscriptions";
             this.textBoxNumSubscriptions.ReadOnly = true;
             this.textBoxNumSubscriptions.Size = new System.Drawing.Size(100, 20);
@@ -736,7 +758,7 @@
             // label16
             // 
             this.label16.AutoSize = true;
-            this.label16.Location = new System.Drawing.Point(6, 42);
+            this.label16.Location = new System.Drawing.Point(6, 48);
             this.label16.Name = "label16";
             this.label16.Size = new System.Drawing.Size(120, 13);
             this.label16.TabIndex = 5;
@@ -745,7 +767,7 @@
             // label15
             // 
             this.label15.AutoSize = true;
-            this.label15.Location = new System.Drawing.Point(6, 16);
+            this.label15.Location = new System.Drawing.Point(6, 22);
             this.label15.Name = "label15";
             this.label15.Size = new System.Drawing.Size(123, 13);
             this.label15.TabIndex = 4;
@@ -848,6 +870,8 @@
         private System.Windows.Forms.TextBox textBoxNumSubscriptions;
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.Label label15;
+        private System.Windows.Forms.TextBox textBoxNotificationCount;
+        private System.Windows.Forms.Label label9;
     }
 }
 

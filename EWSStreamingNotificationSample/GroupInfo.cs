@@ -22,7 +22,7 @@ namespace EWSStreamingNotificationSample
         private string _name = "";
         private List<String> _mailboxes;
         private static int _maxGroupSize = 200;
-        //private string _xBackendOverrideCookie = "";
+        private string _xBackendOverrideCookie = "";
         private ExchangeService _exchangeService = null;
         private ITraceListener _traceListener = null;
         private string _ewsUrl = "";
@@ -40,17 +40,27 @@ namespace EWSStreamingNotificationSample
             _credentialHandler = credentialHandler;
         }
 
+        /// <summary>
+        /// Return the base name of the group (note that if the group contains more than MaxGroupSize members, multiple
+        /// groups will be created based on this name and the group anchor mailbox)
+        /// </summary>
         public string Name
         {
             get { return _name; }
         }
 
+        /// <summary>
+        /// The Exchange version that will be set on the ExchangeService object
+        /// </summary>
         public ExchangeVersion ExchangeVersion
         {
             get { return _exchangeVersion; }
             set { _exchangeVersion = value; }
         }
 
+        /// <summary>
+        /// Maximum number of members per group connection.  This should be left at 200.
+        /// </summary>
         public static int MaxGroupSize
         {
             get { return _maxGroupSize; }
@@ -63,6 +73,9 @@ namespace EWSStreamingNotificationSample
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public ExchangeService ExchangeService
         {
             get
@@ -84,10 +97,24 @@ namespace EWSStreamingNotificationSample
                     _exchangeService.TraceFlags = TraceFlags.All;
                     _exchangeService.TraceEnabled = true;
                 }
+
+                if (!String.IsNullOrEmpty(_xBackendOverrideCookie))
+                {
+                    // As we are creating a new ExchangeService object, we need to set the cookie
+                    // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
+                    // We shouldn't actually need this as we rely on the ExchangeService object to keep track of cookies
+
+                    System.Net.CookieCollection cookies = _exchangeService.CookieContainer.GetCookies(_exchangeService.Url);
+                    cookies.Add(new System.Net.Cookie("X-BackEndOverrideCookie", _xBackendOverrideCookie));
+                }
+
                 return _exchangeService;
             }
         }
 
+        /// <summary>
+        /// The list of malboxes within this group.
+        /// </summary>
         public List<String> Mailboxes
         {
             get { return _mailboxes; }
@@ -122,7 +149,6 @@ namespace EWSStreamingNotificationSample
                 exchange.HttpHeaders.Remove("X-AnchorMailbox");
             exchange.HttpHeaders.Add("X-AnchorMailbox", AnchorMailbox);
 
-            //FolderId[] selectedFolders = SelectedFolders();
             StreamingSubscription subscription;
             SetClientRequestId(exchange);
             if (SubscribeFolders==null)
@@ -131,16 +157,16 @@ namespace EWSStreamingNotificationSample
                 subscription = exchange.SubscribeToStreamingNotifications(SubscribeFolders, SubscribeEvents);
             SubscriptionList.Add(Mailbox, subscription);
 
+            if (String.IsNullOrEmpty(_xBackendOverrideCookie))
+            {
+                // Check for the X-BackendOverride cookie
+                // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
+                // We shouldn't actually need this as we rely on the ExchangeService object to keep track of cookies
 
-            //if (_primaryMailbox.Equals(Mailbox))
-            //{
-            //    // Check for the X-BackendOverride cookie
-            //    // Set-Cookie: X-BackEndOverrideCookie=DB7PR04MB4764.EURPRD04.PROD.OUTLOOK.COM~1943310282; path=/; secure; HttpOnly
-            //    // We don't actually need this as we rely on the ExchangeService object to keep track of cookies
-
-            //    System.Net.CookieCollection cookies = exchange.CookieContainer.GetCookies(new Uri("https://outlook.office365.com"));
-            //    _xBackendOverrideCookie = $"X-BackEndOverrideCookie={cookies["X-BackEndOverrideCookie"].Value}";
-            //}
+                System.Net.CookieCollection cookies = exchange.CookieContainer.GetCookies(exchange.Url);
+                if (cookies["X-BackEndOverrideCookie"] != null)
+                    _xBackendOverrideCookie = $"X-BackEndOverrideCookie={cookies["X-BackEndOverrideCookie"].Value}";
+            }
             return subscription;
         }
 
@@ -162,20 +188,20 @@ namespace EWSStreamingNotificationSample
                 // Sort the mailboxes alphabetically
                 _mailboxes.Sort();
 
-                // Clear out any old connections
+                // Clear out any old connections and subscriptions
                 List<string> activeConnections = Connections.Keys.ToList<string>();
                 foreach (string connectionName in activeConnections)
                 {
                     if (connectionName.StartsWith(_name))
                     {
-                        foreach (StreamingSubscription subscription in Connections[connectionName].CurrentSubscriptions)
-                        {
-                            try
-                            {
-                                subscription.Unsubscribe();
-                            }
-                            catch { }
-                        }
+                        //foreach (StreamingSubscription subscription in Connections[connectionName].CurrentSubscriptions)
+                        //{
+                        //    try
+                        //    {
+                        //        subscription.Unsubscribe();
+                        //    }
+                        //    catch { }
+                        //}
                         try
                         {
                             if (Connections[connectionName].IsOpen)
@@ -193,9 +219,11 @@ namespace EWSStreamingNotificationSample
             {
                 // The first mailbox of the group is what we set X-AnchorMailbox to for this connection
                 string anchorMailbox = _mailboxes[SubscriptionIndex];
+                StreamingSubscription subscription;
                 if (SubscriptionList.ContainsKey(anchorMailbox))
-                    SubscriptionList.Remove(anchorMailbox);
-                StreamingSubscription subscription = AddSubscription(anchorMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
+                    subscription = SubscriptionList[anchorMailbox];
+                else
+                    subscription = AddSubscription(anchorMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders);
 
                 string groupName = $"{_name}{anchorMailbox}";
                 groupConnection = new StreamingSubscriptionConnection(subscription.Service, TimeOut);
@@ -213,8 +241,10 @@ namespace EWSStreamingNotificationSample
                     try
                     {
                         if (SubscriptionList.ContainsKey(sMailbox))
-                            SubscriptionList.Remove(sMailbox);
-                        subscription = AddSubscription(sMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders, null, anchorMailbox);
+                            subscription = SubscriptionList[sMailbox];
+                        else
+                            subscription = AddSubscription(sMailbox, ref SubscriptionList, SubscribeEvents, SubscribeFolders, null, anchorMailbox);
+
                         groupConnection.AddSubscription(subscription);
                         Logger.Log($"{sMailbox} subscription created in group {groupName}");
                     }
