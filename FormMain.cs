@@ -112,20 +112,7 @@ namespace EWSStreamingNotificationSample
         /// <param name="a"></param>
         private void _logger_LogAdded(object sender, LoggerEventArgs a)
         {
-            Action action = new Action(() => {
-                try
-                {
-                    listBoxEvents.Items.Add(a.LogDetails);
-                    listBoxEvents.SelectedIndex = listBoxEvents.Items.Count - 1;
-                    while (listBoxEvents.Items.Count > 1000)
-                        listBoxEvents.Items.RemoveAt(0);
-                }
-                catch { }
-            });
-            if (listBoxEvents.InvokeRequired)
-                listBoxEvents.Invoke(action);
-            else
-                action();
+            ShowEvent(a.LogDetails);
         }
 
         /// <summary>
@@ -558,8 +545,10 @@ namespace EWSStreamingNotificationSample
             Action action = new Action(() =>
             {
                 listBoxEvents.Items.Add(eventDetails);
-                listBoxEvents.SelectedIndex = listBoxEvents.Items.Count - 1;
-
+                while (listBoxEvents.Items.Count > 1000)
+                    listBoxEvents.Items.RemoveAt(0);
+                if (listBoxEvents.SelectedIndex<0)
+                    listBoxEvents.TopIndex = listBoxEvents.Items.Count - 1;
             });
             if (listBoxEvents.InvokeRequired)
                 listBoxEvents.Invoke(action);
@@ -1056,7 +1045,6 @@ namespace EWSStreamingNotificationSample
                 Utils.CredentialHandler.AcquireToken();
 
             buttonSubscribe.Enabled = false;
-            buttonUnsubscribe.Enabled = true;
 
             ConnectionTracker.ConnectionLifetime = (int)numericUpDownTimeout.Value;
 
@@ -1068,13 +1056,13 @@ namespace EWSStreamingNotificationSample
                 _initialising = false;
             });
             Task.Run(() => subscribeAction());
-
+            
+            buttonUnsubscribe.Enabled = true;
             timerMonitorConnections.Start();
         }
 
         private void buttonUnsubscribe_Click(object sender, EventArgs e)
         {
-            buttonSubscribe.Enabled = true;
             buttonUnsubscribe.Enabled = false;
 
             Action unsubscribeAction = new Action(() =>
@@ -1084,6 +1072,7 @@ namespace EWSStreamingNotificationSample
 
             });
             Task.Run(() => unsubscribeAction());
+            buttonSubscribe.Enabled = true;
         }
 
         private void timerMonitorConnections_Tick(object sender, EventArgs e)
@@ -1098,6 +1087,15 @@ namespace EWSStreamingNotificationSample
             EnsureConnectionsAreOpen();
             
             timerMonitorConnections.Start();
+        }
+
+        private void listBoxEvents_DoubleClick(object sender, EventArgs e)
+        {
+            if (listBoxEvents.SelectedIndex < 0 || listBoxEvents.SelectedItems.Count>1)
+                return;
+
+            if (MessageBox.Show(this, listBoxEvents.Items[listBoxEvents.SelectedIndex].ToString(), "Event information", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) == DialogResult.Cancel)
+                listBoxEvents.SelectedIndex = -1;
         }
     }
     #endregion
