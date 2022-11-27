@@ -11,6 +11,7 @@
  * */
 
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace EWSStreamingNotificationSample
@@ -37,16 +38,18 @@ namespace EWSStreamingNotificationSample
         }
     }
 
-    public class ClassLogger
+    public class Logger
     {
         private StreamWriter _logStream = null;
         private string _logPath = "";
         private bool _logDateAndTime = true;
+        private int _logFlushCounter = 0;
 
         public delegate void LoggerEventHandler(object sender, LoggerEventArgs a);
         public event LoggerEventHandler LogAdded;
+        static public Logger DefaultLogger = null;
 
-        public ClassLogger(string LogFile)
+        public Logger(string LogFile)
         {
             try
             {
@@ -54,9 +57,11 @@ namespace EWSStreamingNotificationSample
                 _logPath = LogFile;
             }
             catch { }
+            if (DefaultLogger == null)
+                DefaultLogger = this;
         }
 
-        ~ClassLogger()
+        ~Logger()
         {
             try
             {
@@ -89,24 +94,34 @@ namespace EWSStreamingNotificationSample
             {
                 DateTime oLogTime = DateTime.Now;
 
-                if (String.IsNullOrEmpty(Description))
+                lock (_logStream)
                 {
-                    if (_logDateAndTime)
-                        _logStream.WriteLine(String.Format("{0:dd/MM/yy HH:mm:ss}", oLogTime) + " ==> " + Details);
+                    if (String.IsNullOrEmpty(Description))
+                    {
+                        
+                        if (_logDateAndTime)
+                            _logStream.WriteLine(oLogTime.ToString("O", DateTimeFormatInfo.InvariantInfo) + " ==> " + Details);
+                    }
+                    else
+                    {
+                        _logStream.WriteLine("");
+                        if (_logDateAndTime)
+                            _logStream.WriteLine(oLogTime.ToString("O", DateTimeFormatInfo.InvariantInfo) + " ==> " + Description);
+                        _logStream.WriteLine(Details);
+                    }
                 }
-                else
+
+                _logFlushCounter++;
+                if (_logFlushCounter > 9)
                 {
-                    _logStream.WriteLine("");
-                    if (_logDateAndTime)
-                        _logStream.WriteLine(String.Format("{0:dd/MM/yy HH:mm:ss}", oLogTime) + " ==> " + Description);
-                    _logStream.WriteLine(Details);
+                    _logStream.Flush();
+                    _logFlushCounter = 0;
                 }
-                _logStream.Flush();
 
                 if (!SuppressEvent)
                     OnLogAdded(new LoggerEventArgs(oLogTime, Description + " " + Details));
             }
-            catch {}
+            catch { }
         }
     }
 }

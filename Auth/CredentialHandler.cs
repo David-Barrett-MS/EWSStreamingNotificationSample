@@ -1,5 +1,5 @@
 ﻿/*
- * By David Barrett, Microsoft Ltd. 2020 - 2022. Use at your own risk.  No warranties are given.
+ * By David Barrett, Microsoft Ltd. 2022. Use at your own risk.  No warranties are given.
  * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -38,9 +38,9 @@ namespace EWSStreamingNotificationSample.Auth
         AuthType _authType = AuthType.Basic;
         private AuthenticationResult _lastOAuthResult = null;
         private OAuthHelper _oAuthHelper = new OAuthHelper();
-        private ClassLogger _logger = null;
+        private Logger _logger = null;
 
-        public CredentialHandler(AuthType authType, ClassLogger Logger=null)
+        public CredentialHandler(AuthType authType, Logger Logger=null)
         {
             _authType = authType;
             _logger = Logger;
@@ -75,6 +75,13 @@ namespace EWSStreamingNotificationSample.Auth
             if (_lastOAuthResult != null && _lastOAuthResult.ExpiresOn > DateTime.Now)
                 return false;
             return true;
+        }
+
+        public TimeSpan TimeUntilAccessTokenExpires()
+        {
+            if (_lastOAuthResult == null)
+                return TimeSpan.MaxValue;
+            return _lastOAuthResult.ExpiresOn.Subtract(DateTime.Now);
         }
 
         public X509Certificate2 Certificate
@@ -144,7 +151,7 @@ namespace EWSStreamingNotificationSample.Auth
 
                 case AuthType.OAuth:
                     // Check if we already have valid access token
-                    if (_lastOAuthResult != null && _lastOAuthResult.ExpiresOn > DateTime.Now) return true;
+                    if (_lastOAuthResult != null && _lastOAuthResult.ExpiresOn > DateTime.Now.AddMinutes(5)) return true;
 
                     // We don't have an access token, so check the application configuration
                     if (String.IsNullOrEmpty(ApplicationId)) return false;
@@ -160,7 +167,7 @@ namespace EWSStreamingNotificationSample.Auth
             }
         }
 
-        public void LogCredentials(ClassLogger Logger)
+        public void LogCredentials(Logger Logger)
         {
             StringBuilder sCredentialInfo = new StringBuilder();
             switch (_authType)

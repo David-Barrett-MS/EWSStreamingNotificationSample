@@ -1,41 +1,31 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.1.31911.260
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EWSStreamingNotificationSample", "EWSStreamingNotificationSample\EWSStreamingNotificationSample.csproj", "{6661DD46-692D-40A4-866E-389572FCB66A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EWSStreamingNotificationSample", "EWSStreamingNotificationSample.csproj", "{72F85037-A094-4A1D-81E1-3E492EBB7580}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.Exchange.WebServices.Data", "E:\Github Repositories\ews-managed-api\Microsoft.Exchange.WebServices.Data.csproj", "{F059972F-0561-4203-ABB8-3ABB41CCBE22}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
-		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
-		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Debug|Any CPU.ActiveCfg = Debug|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Debug|Any CPU.Build.0 = Debug|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Debug|x86.ActiveCfg = Debug|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Debug|x86.Build.0 = Debug|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Release|Any CPU.ActiveCfg = Release|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Release|Any CPU.Build.0 = Release|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Release|x86.ActiveCfg = Release|x86
-		{6661DD46-692D-40A4-866E-389572FCB66A}.Release|x86.Build.0 = Release|x86
+		{72F85037-A094-4A1D-81E1-3E492EBB7580}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72F85037-A094-4A1D-81E1-3E492EBB7580}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72F85037-A094-4A1D-81E1-3E492EBB7580}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72F85037-A094-4A1D-81E1-3E492EBB7580}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Debug|x86.Build.0 = Debug|Any CPU
 		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Release|x86.ActiveCfg = Release|Any CPU
-		{F059972F-0561-4203-ABB8-3ABB41CCBE22}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {9558338A-3576-4B6D-9907-C7D2D13B8F7A}
+		SolutionGuid = {CB02D912-5E3B-4780-AE95-35B03B3AF6D0}
 	EndGlobalSection
 EndGlobal

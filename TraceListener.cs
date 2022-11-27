@@ -1,5 +1,5 @@
 ﻿/*
- * By David Barrett, Microsoft Ltd. 2013-2022. Use at your own risk.  No warranties are given.
+ * By David Barrett, Microsoft Ltd. 2022. Use at your own risk.  No warranties are given.
  * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -16,13 +16,13 @@ using System.IO;
 
 namespace EWSStreamingNotificationSample
 {
-    public class ClassTraceListener: ITraceListener
+    public class TraceListener : ITraceListener
     {
         string _traceFile = "";
         private StreamWriter _traceStream = null;
         object _writeLock = new object();
 
-        public ClassTraceListener(string traceFile)
+        public TraceListener(string traceFile)
         {
             try
             {
@@ -32,19 +32,43 @@ namespace EWSStreamingNotificationSample
             catch { }
         }
 
-        ~ClassTraceListener()
+        ~TraceListener()
         {
+            CloseTraceFile();
+        }
+
+        public void CloseTraceFile()
+        {
+            if (_traceStream == null)
+                return;
+
             try
             {
-                _traceStream?.Flush();
-                _traceStream?.Close();
+                _traceStream.Flush();
+                _traceStream.Close();
             }
             catch { }
+            _traceStream = null;
         }
+
         public void Trace(string traceType, string traceMessage)
         {
-            if (_traceStream == null || String.IsNullOrEmpty(traceMessage))
+            if (String.IsNullOrEmpty(traceMessage))
                 return;
+
+            if (_traceStream == null)
+            {
+                if (String.IsNullOrEmpty(_traceFile))
+                    return;
+                try
+                {
+                    _traceStream = File.AppendText(_traceFile);
+                }
+                catch
+                {
+                    return;
+                }
+            }
 
             lock (_writeLock)
             {

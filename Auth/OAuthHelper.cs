@@ -20,6 +20,8 @@ namespace EWSStreamingNotificationSample.Auth
     public class OAuthHelper
     {
         private static Exception _lastError = null;
+        private static IPublicClientApplication _publicClientApplication = null;
+        private static IConfidentialClientApplication _confidentialClientApplication = null;
 
         public static Exception LastError
         {
@@ -42,14 +44,14 @@ namespace EWSStreamingNotificationSample.Auth
             else
                 pca = pca.WithRedirectUri("http://localhost/code");
 
-            var app = pca.Build();
+            _publicClientApplication = pca.Build();
 
             var ewsScopes = new string[] { $"https://outlook.office.com/{Scope}" };
 
             try
             {
                 // Make the interactive token request
-                AuthenticationResult authResult = await app.AcquireTokenInteractive(ewsScopes).ExecuteAsync();
+                AuthenticationResult authResult = await _publicClientApplication.AcquireTokenInteractive(ewsScopes).ExecuteAsync();
                 return authResult;
             }
             catch (Exception ex)
@@ -64,16 +66,17 @@ namespace EWSStreamingNotificationSample.Auth
             // Configure the MSAL client to get tokens
             var ewsScopes = new string[] { "https://outlook.office.com/.default" };
 
-            var app = ConfidentialClientApplicationBuilder.Create(ClientId)
-                .WithAuthority(AzureCloudInstance.AzurePublic, TenantId)
-                .WithClientSecret(ClientSecret)
-                .Build();
+            if (_confidentialClientApplication == null)
+                _confidentialClientApplication = ConfidentialClientApplicationBuilder.Create(ClientId)
+                    .WithAuthority(AzureCloudInstance.AzurePublic, TenantId)
+                    .WithClientSecret(ClientSecret)
+                    .Build();
 
             AuthenticationResult result = null;
             try
             {
                 // Make the token request (should not be interactive, unless Consent required)
-                result = await app.AcquireTokenForClient(ewsScopes)
+                result = await _confidentialClientApplication.AcquireTokenForClient(ewsScopes)
                     .ExecuteAsync();
             }
             catch (Exception ex)
@@ -88,16 +91,17 @@ namespace EWSStreamingNotificationSample.Auth
             // Configure the MSAL client to get tokens
             var ewsScopes = new string[] { "https://outlook.office.com/.default" };
 
-            var app = ConfidentialClientApplicationBuilder.Create(ClientId)
-                .WithAuthority(AzureCloudInstance.AzurePublic, TenantId)
-                .WithCertificate(ClientCertificate)
-                .Build();
+            if (_confidentialClientApplication == null)
+                _confidentialClientApplication = ConfidentialClientApplicationBuilder.Create(ClientId)
+                    .WithAuthority(AzureCloudInstance.AzurePublic, TenantId)
+                    .WithCertificate(ClientCertificate)
+                    .Build();
 
             AuthenticationResult result = null;
             try
             {
                 // Make the token request (should not be interactive, unless Consent required)
-                result = await app.AcquireTokenForClient(ewsScopes)
+                result = await _confidentialClientApplication.AcquireTokenForClient(ewsScopes)
                     .ExecuteAsync();
             }
             catch (Exception ex)
