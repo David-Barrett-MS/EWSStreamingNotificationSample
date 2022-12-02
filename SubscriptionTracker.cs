@@ -85,7 +85,17 @@ namespace EWSStreamingNotificationSample
         {
             if (_subscriptionIdToMailbox.ContainsKey(SubscriptionId))
                 return _subscriptionIdToMailbox[SubscriptionId];
-            return "Unknown subscription";
+            return "";
+        }
+
+        /// <summary>
+        /// Clear the subscription from all tracking (it failed and needs to be rebuilt)
+        /// </summary>
+        /// <param name="SubscriptionId">The SubscriptionId to clear/remove</param>
+        public static void ClearSubscription(string SubscriptionId)
+        {
+            if (_subscriptionIdToMailbox.ContainsKey(SubscriptionId))
+                _subscriptionIdToMailbox.Remove(SubscriptionId);
         }
 
 
@@ -271,7 +281,7 @@ namespace EWSStreamingNotificationSample
             }
             catch (Exception ex)
             {
-                Logger.DefaultLogger?.Log($"Failed to subscribe for {SMTPAddress}: {ex.Message}");
+                Logger.DefaultLogger?.Log($"Failed to unsubscribe for {SMTPAddress}: {ex.Message}");
             }
         }
 

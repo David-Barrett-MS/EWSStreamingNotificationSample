@@ -94,6 +94,9 @@ namespace EWSStreamingNotificationSample
         /// <returns>ExchangeService object</returns>
         public static ExchangeService NewExchangeService(string Mailbox, string EwsUrl, string AnchorMailbox = "")
         {
+            if (String.IsNullOrEmpty(EwsUrl))
+                return null;
+
             // Create exchange service for this group
             ExchangeService exchangeService = new ExchangeService(ExchangeVersion.Exchange2016);
             exchangeService.UserAgent = "StreamingSampleApp";

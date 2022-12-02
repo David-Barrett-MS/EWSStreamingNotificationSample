@@ -37,9 +37,17 @@ namespace EWSStreamingNotificationSample
         private Dictionary<string, SubscriptionTracker> _subscriptions = new Dictionary<string,SubscriptionTracker>();
 
         /// <summary>
-        /// List of any subscriptions that need recreating due to fatal error
+        /// List of any subscriptions that need recreating due to temporary error
         /// </summary>
         private List<string> _subscriptionsInError = new List<string>();
+        /// <summary>
+        /// List of any subscriptions that failed with fatal error and need reinitialisation
+        /// </summary>
+        private List<string> _subscriptionsToRebuild = new List<string>();
+        /// <summary>
+        /// Full rebuild is only attempted every five minutes - this is the earliest we should retry
+        /// </summary>
+        private DateTime _nextRebuildAttemptTime = DateTime.Now.AddMinutes(5);
         private Logger _logger;
         /// <summary>
         /// Count of item notifications received
@@ -51,6 +59,7 @@ namespace EWSStreamingNotificationSample
         private long _folderNotificationsReceived = 0;
         private object _subscriptionsLock = new object();
         private bool _initialising = false;
+        private string _lastResiliencyError = "";
 
         public FormMain()
         {
@@ -165,7 +174,7 @@ namespace EWSStreamingNotificationSample
         /// <summary>
         /// Create CredentialHandler object based on current configuration
         /// </summary>
-        /// <returns></returns>
+        /// <returns>CredentialHandler object configured with UI selected auth settings</returns>
         private Auth.CredentialHandler CreateCredentialHandler()
         {
             // Instantiate the relevant CredentialHandler if not already done
@@ -246,6 +255,12 @@ namespace EWSStreamingNotificationSample
             }
         }
 
+        /// <summary>
+        /// Occurs when a subscription error is raised
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+
         private void StreamingSubscriptionConnection_OnSubscriptionError(object sender, EWS.SubscriptionErrorEventArgs args)
         {
             // These errors all indicate that the subscription should be recreated (which can be done immediately, but not in this event handler)
@@ -253,13 +268,21 @@ namespace EWSStreamingNotificationSample
                 "The subscription must be recreated.",
                 "The Service instance doesn't have sufficient permissions to perform the request." };
 
-            // Need to add delayed resubscribe mechanism for mailbox moves (not implemented) and temporary errors.
-            // (AutoDiscover renewal will also be required):
+            // These errors trigger a full rebuild (including AutoDiscover) - note that this sample is not fully resilient for such errors
+            string[] rebuildErrors = { "Mailbox move in progress.",
+                "The mailbox database is temporarily unavailable",
+                "MailboxMoveStarted"};
+
+            // Any errors not matched above are considered fatal errors and no remediation will be taken
+            // 
             //  <m:MessageText>Mailbox move in progress. Try again later., Cannot open mailbox. Server = VI1PR04MB5440.eurprd04.prod.outlook.com, user = /o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=3693ebc023a445428b521a5a448d9dd0-113, maiboxGuid = f4d3b438-94bd-4449-b16e-cf9a7077c99e</m:MessageText>
             //  <m:ResponseCode>ErrorMailboxMoveInProgress</m:ResponseCode>
             //
             //  <m:MessageText>The mailbox database is temporarily unavailable., Cannot open mailbox. Server = HE1PR04MB3099.eurprd04.prod.outlook.com, user = /o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=eb9df0127efb4851a7563deae7dd6ad4-119, maiboxGuid = f1912d48-a20f-417d-a876-8dc322c1b406</m:MessageText>
             //  <m:ResponseCode>ErrorMailboxStoreUnavailable</m:ResponseCode>
+            //
+            //  <m:MessageText>Subscription is invalid., This message indicates no more events will occur for this EventSink. Event = Event. TimeStamp = 12/2/2022 8:22:25 AM. Event type = MailboxMoveStarted, Object Type = None, .ObjectId = ..</m:MessageText>
+            //  <m:ResponseCode>ErrorInvalidSubscription</m:ResponseCode>
             //
             // Handled error responses (immediately resubscribe):
             //
@@ -277,13 +300,24 @@ namespace EWSStreamingNotificationSample
 
             try
             {
-                _logger.Log($"OnSubscriptionError received for {SubscriptionTracker.MailboxOwningSubscription(args.Subscription.Id)}: {args.Exception.Message}");                
+                _logger.Log($"OnSubscriptionError received for {SubscriptionTracker.MailboxOwningSubscription(args.Subscription.Id)}: {args.Exception.Message}");
+                bool minorError = false;
                 foreach (string error in resubscribeErrors)
                     if (args.Exception.Message.Contains(error))
                     {
                         _subscriptionsInError.Add(args.Subscription.Id);
+                        minorError = true;
                         break;
                     }
+                if (!minorError)
+                {
+                    foreach (string error in rebuildErrors)
+                        if (args.Exception.Message.Contains(error))
+                        {
+                            _subscriptionsToRebuild.Add(args.Subscription.Id);
+                            break;
+                        }
+                }
             }
             catch
             {
@@ -300,8 +334,18 @@ namespace EWSStreamingNotificationSample
         /// <exception cref="NotImplementedException"></exception>
         private void StreamingSubscriptionConnection_OnNotificationEvent(object sender, EWS.NotificationEventArgs args)
         {
-            foreach (EWS.NotificationEvent e in args.Events)
-                ProcessNotification(e, args.Subscription);
+            // Immediately put the processing out to another thread
+            ThreadPool.QueueUserWorkItem(new WaitCallback(ProcessNotifications), args);
+        }
+
+        /// <summary>
+        /// Process the notification(s) recieved
+        /// </summary>
+        /// <param name="o">NotificationEventArgs object</param>
+        private void ProcessNotifications(object o)
+        {
+            foreach (EWS.NotificationEvent e in ((EWS.NotificationEventArgs)o).Events)
+                ProcessNotification(e, ((EWS.NotificationEventArgs)o).Subscription);
         }
 
         /// <summary>
@@ -360,7 +404,7 @@ namespace EWSStreamingNotificationSample
             if (checkBoxQueryMore.Checked)
                 return; // The event is being handled in a worker thread
 
-            ShowEvent(sEvent);
+            _logger.Log(sEvent);
         }
 
         /// <summary>
@@ -384,6 +428,8 @@ namespace EWSStreamingNotificationSample
             NotificationInfo n = (NotificationInfo)e;
 
             EWS.ExchangeService ewsMoreInfoService = Utils.NewExchangeService(n.Mailbox, MailboxEWSUrl(n.Mailbox), n.Mailbox);
+            if (ewsMoreInfoService == null)
+                _logger.Log($"[ShowMoreInfo]Failed to obtain EWS URL for mailbox: {n.Mailbox}");
 
             string sEvent = "";
             if (n.Event is EWS.ItemEvent)
@@ -393,7 +439,7 @@ namespace EWSStreamingNotificationSample
             else
                 sEvent = $"{n.Mailbox}: Folder {(n.Event as EWS.FolderEvent).EventType}: {MoreFolderInfo(n.Event as EWS.FolderEvent, ewsMoreInfoService)}";
 
-            ShowEvent(sEvent);
+            _logger.Log(sEvent);
         }
 
         /// <summary>
@@ -589,14 +635,19 @@ namespace EWSStreamingNotificationSample
                 action();
         }
 
+        private string AutodiscoverUrl()
+        {
+            string autodiscoverUrl = "";
+            if (radioButtonOffice365.Checked)
+                autodiscoverUrl = "https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc";
+            return autodiscoverUrl;
+        }
+
         /// <summary>
         /// Create the subscriptions for each mailbox
         /// </summary>
         private void InitialiseSubscriptions()
         {
-            string autodiscoverUrl = "";
-            if (radioButtonOffice365.Checked)
-                autodiscoverUrl = "https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc";
             List<Task> initTasks = new List<Task>();
 
             DateTime timeTrack = DateTime.Now;
@@ -606,7 +657,7 @@ namespace EWSStreamingNotificationSample
                 {
                     Action action = new Action(() =>
                     {
-                        SubscriptionTracker subscriptionTracker = SubscriptionTracker.CreateTrackerForMailbox(sMailbox, autodiscoverUrl);
+                        SubscriptionTracker subscriptionTracker = SubscriptionTracker.CreateTrackerForMailbox(sMailbox, AutodiscoverUrl());
                         if (subscriptionTracker != null)
                             lock (_subscriptionsLock)
                                 _subscriptions.Add(sMailbox, subscriptionTracker);
@@ -653,14 +704,21 @@ namespace EWSStreamingNotificationSample
                         {
                             try
                             {
-                                sTracker.Subscribe(selectedEvents, selectedFolders, sTracker.AnchorMailbox);
-                                if (sTracker.Connection.AddSubscription(sTracker))
-                                    if (cTracker.AnchorMailbox == sTracker.SMTPAddress)
-                                    {
-                                        //  Anchor mailbox, we hook into subscription events at this point (i.e. only once)
-                                        sTracker.Connection.StreamingSubscriptionConnection.OnNotificationEvent += StreamingSubscriptionConnection_OnNotificationEvent;
-                                        sTracker.Connection.StreamingSubscriptionConnection.OnSubscriptionError += StreamingSubscriptionConnection_OnSubscriptionError;
-                                    }
+                                if (sTracker.Subscribe(selectedEvents, selectedFolders, sTracker.AnchorMailbox))
+                                {
+                                    if (sTracker.Connection.AddSubscription(sTracker))
+                                        if (cTracker.AnchorMailbox == sTracker.SMTPAddress)
+                                        {
+                                            //  Anchor mailbox, we hook into subscription events at this point (i.e. only once)
+                                            sTracker.Connection.StreamingSubscriptionConnection.OnNotificationEvent += StreamingSubscriptionConnection_OnNotificationEvent;
+                                            sTracker.Connection.StreamingSubscriptionConnection.OnSubscriptionError += StreamingSubscriptionConnection_OnSubscriptionError;
+                                        }
+                                }
+                                else
+                                {
+                                    // Failed to subscribe, add to rebuild list
+                                    _subscriptionsToRebuild.Add(sTracker.SMTPAddress);
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -782,6 +840,9 @@ namespace EWSStreamingNotificationSample
         /// </summary>
         private void RecoverBrokenSubscriptions()
         {
+            if (_subscriptionsInError.Count < 1)
+                return;
+
             EWS.EventType[] selectedEvents = SelectedEvents();
             EWS.FolderId[] selectedFolders = SelectedFolders();
 
@@ -812,6 +873,96 @@ namespace EWSStreamingNotificationSample
                 Utils.Connections[groupName].Connect();
             }
             UpdateStats();
+        }
+
+        /// <summary>
+        /// Rebuild any failed subscriptions (that need full restart)
+        /// </summary>
+        private void RebuildFailedSubscriptions()
+        {
+            if (_subscriptionsToRebuild.Count < 1)
+            {
+                _nextRebuildAttemptTime = DateTime.Now.AddMinutes(5);
+                return;
+            }
+
+            if (_nextRebuildAttemptTime > DateTime.Now)
+                return;
+
+            _nextRebuildAttemptTime = DateTime.MaxValue; // Ensure we don't trigger rebuild more than once at a time
+            EWS.EventType[] selectedEvents = SelectedEvents();
+            EWS.FolderId[] selectedFolders = SelectedFolders();
+
+            List<string> groupsToReconnect = new List<string>();
+
+            // Attempt full rebuild of subscriptions
+            _nextRebuildAttemptTime = DateTime.Now.AddMinutes(5);
+            int i = 0;
+            while (i < _subscriptionsToRebuild.Count)
+            {
+                SubscriptionTracker sTracker;
+                if (_subscriptions.ContainsKey(SubscriptionTracker.MailboxOwningSubscription(_subscriptionsToRebuild[i])))
+                {
+                    // Remove any references to the broken subscription and replace the Subscription Id with mailbox address for rebuild
+                    sTracker = _subscriptions[SubscriptionTracker.MailboxOwningSubscription(_subscriptionsToRebuild[i])];
+                    SubscriptionTracker.ClearSubscription(_subscriptionsToRebuild[i]);
+                    _subscriptions.Remove(SubscriptionTracker.MailboxOwningSubscription(_subscriptionsToRebuild[i]));
+                    _subscriptionsToRebuild[i] = sTracker.SMTPAddress;
+                    sTracker = null;
+                }
+
+                _logger.Log($"Attempting to rebuild subscription for {_subscriptionsToRebuild[i]}");
+                sTracker = SubscriptionTracker.CreateTrackerForMailbox(_subscriptionsToRebuild[i], AutodiscoverUrl());
+                if (sTracker != null)
+                {
+                    // We were able to create a new subscription.  Work out which connection to add to (we may need a new one).
+
+                    sTracker.GroupName = $"{sTracker.GroupingInformation}{sTracker.EwsUrl}";
+                    ConnectionTracker cTracker = null;
+                    if (Utils.Connections.ContainsKey(sTracker.GroupName))
+                    {
+                        if (Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection.CurrentSubscriptions.Count() > numericUpDownMaxMailboxesInGroup.Value)
+                        {
+                            int subGroups = 2;
+                            while (Utils.Connections.ContainsKey(sTracker.GroupName) && Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection.CurrentSubscriptions.Count() > numericUpDownMaxMailboxesInGroup.Value)
+                            {
+                                sTracker.GroupName = $"{sTracker.GroupingInformation}{sTracker.EwsUrl}-{subGroups}";
+                                subGroups++;
+                            }
+                        }
+                        if (Utils.Connections.ContainsKey(sTracker.GroupName))
+                        {
+                            cTracker = Utils.Connections[sTracker.GroupName];
+                            if (!groupsToReconnect.Contains(sTracker.GroupName))
+                                groupsToReconnect.Add(sTracker.GroupName);
+                            cTracker.Disconnect();
+                            cTracker.ConfigureSubscription(sTracker);
+                        }
+                    }
+
+                    if (cTracker == null)
+                    {
+                        // Need to create new connection for this subscription
+                        cTracker = new ConnectionTracker(sTracker.GroupName);
+                        cTracker.ConfigureSubscription(sTracker);
+                        Utils.Connections.Add(sTracker.GroupName, cTracker);
+                        _logger.Log($"{sTracker.GroupName}: {sTracker.SMTPAddress} added");
+                    }
+
+                    sTracker.Subscribe(selectedEvents, selectedFolders, sTracker.AnchorMailbox);
+                    cTracker.AddSubscription(sTracker);
+                    _subscriptionsToRebuild.RemoveAt(i);
+                }
+                else
+                    i++;
+            }
+
+            foreach (string groupName in groupsToReconnect)
+            {
+                Utils.Connections[groupName].Connect();
+            }
+            UpdateStats();
+            _nextRebuildAttemptTime = DateTime.Now.AddMinutes(5);
         }
 
         /// <summary>
@@ -1077,14 +1228,26 @@ namespace EWSStreamingNotificationSample
 
         private void timerMonitorConnections_Tick(object sender, EventArgs e)
         {
-            if (buttonSubscribe.Enabled || _initialising)
+            if (!buttonUnsubscribe.Enabled || _initialising)
                 return;
 
             timerMonitorConnections.Stop();
-            if (_subscriptionsInError.Count > 0)
-                RecoverBrokenSubscriptions();
 
-            EnsureConnectionsAreOpen();
+            try
+            {
+                RecoverBrokenSubscriptions();
+                RebuildFailedSubscriptions();
+                EnsureConnectionsAreOpen();
+            }
+            catch (Exception ex)
+            {
+                string err = $"Error during resiliency checks: {ex.Message}";
+                if (!err.Equals(_lastResiliencyError))
+                {
+                    _lastResiliencyError = err;
+                    _logger.Log(_lastResiliencyError);
+                }
+            }
             
             timerMonitorConnections.Start();
         }
