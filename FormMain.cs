@@ -27,6 +27,7 @@ namespace EWSStreamingNotificationSample
         public string Mailbox;
         public object Event;
         public EWS.ExchangeService Service;
+        public string CorrectedId;
     }
 
     public partial class FormMain : Form
@@ -60,6 +61,11 @@ namespace EWSStreamingNotificationSample
         private object _subscriptionsLock = new object();
         private bool _initialising = false;
         private string _lastResiliencyError = "";
+
+        /// <summary>
+        /// We cache ConvertId lookups as we are likely to receive several events with the same legacy ID (when that occurs)
+        /// </summary>
+        private Dictionary<string, string> _convertIdCache = new Dictionary<string, string>();
 
         public FormMain()
         {
@@ -349,6 +355,40 @@ namespace EWSStreamingNotificationSample
         }
 
         /// <summary>
+        /// Convert legacy EWS Id to current format
+        /// </summary>
+        /// <param name="mailbox"></param>
+        /// <param name="itemId"></param>
+        /// <returns></returns>
+        EWS.ItemId ConvertId(string mailbox, string ewsLegacyId)
+        {
+            string legacyCacheKey = $"{mailbox}{ewsLegacyId}";
+            if (_convertIdCache.ContainsKey(legacyCacheKey))
+                return new EWS.ItemId(_convertIdCache[legacyCacheKey]);
+
+            EWS.ExchangeService service = Utils.NewExchangeService(mailbox, MailboxEWSUrl(mailbox), mailbox);
+            if (service == null)
+                return null;
+            
+            Utils.SetClientRequestId(service);
+            Utils.CredentialHandler.ApplyCredentialsToExchangeService(service);
+
+            EWS.AlternateIdBase legacyId = new EWS.AlternateId(EWS.IdFormat.EwsLegacyId, ewsLegacyId, mailbox);
+            try
+            {
+                EWS.AlternateIdBase ewsId = service.ConvertId(legacyId, EWS.IdFormat.EwsId);
+                if (!_convertIdCache.ContainsKey(legacyCacheKey))
+                    _convertIdCache.Add(legacyCacheKey, (ewsId as EWS.AlternateId).UniqueId);
+                return (ewsId as EWS.AlternateId).UniqueId;
+            }
+            catch
+            {
+                return null;
+            }
+
+        }
+
+        /// <summary>
         /// Process the received EWS notification
         /// </summary>
         /// <param name="e"></param>
@@ -360,17 +400,36 @@ namespace EWSStreamingNotificationSample
 
             string sEvent = sMailbox + ": ";
 
+            // Check if the EWS ID has been returned in legacy format (EX698071)
+
+            string correctedId = "";
             if (e is EWS.ItemEvent)
             {
                 _itemNotificationsReceived++;
                 if (!checkBoxShowItemEvents.Checked) return; // We're ignoring item events
                 sEvent += "Item " + (e as EWS.ItemEvent).EventType.ToString() + ": ";
+                if ((e as EWS.ItemEvent).ItemId.UniqueId.Length < 130)
+                {
+                    // This is a legacy format ID, we need to convert it to the new format
+                    correctedId = ConvertId(sMailbox, (e as EWS.ItemEvent).ItemId.UniqueId).UniqueId;
+                    sEvent += " (legacyId converted)";
+                    if (checkBoxQueryMore.Checked)
+                        _logger.Log(sEvent);
+                }
             }
             else if (e is EWS.FolderEvent)
             {
                 _folderNotificationsReceived++;
                 if (!checkBoxShowFolderEvents.Checked) return; // We're ignoring folder events
                 sEvent += "Folder " + (e as EWS.FolderEvent).EventType.ToString() + ": ";
+                if ((e as EWS.FolderEvent).FolderId.UniqueId.Length < 130)
+                {
+                    // This is a legacy format ID, we need to convert it to the new format
+                    correctedId = ConvertId(sMailbox, (e as EWS.FolderEvent).FolderId.UniqueId).UniqueId;
+                    sEvent += " (legacyId converted)";
+                    if (checkBoxQueryMore.Checked)
+                        _logger.Log(sEvent);
+                }
             }
 
             try
@@ -382,6 +441,7 @@ namespace EWSStreamingNotificationSample
                     info.Mailbox = sMailbox;
                     info.Event = e;
                     info.Service = null;
+                    info.CorrectedId = correctedId;
 
                     ThreadPool.QueueUserWorkItem(new WaitCallback(ShowMoreInfo), info);
                 }
@@ -432,9 +492,13 @@ namespace EWSStreamingNotificationSample
                 _logger.Log($"[ShowMoreInfo]Failed to obtain EWS URL for mailbox: {n.Mailbox}");
 
             string sEvent = "";
+            string ewsId = n.CorrectedId;
+            if (String.IsNullOrEmpty(ewsId))
+                ewsId = (n.Event as EWS.ItemEvent).ItemId.UniqueId;
+
             if (n.Event is EWS.ItemEvent)
             {
-                sEvent = $"{n.Mailbox}: Item {(n.Event as EWS.ItemEvent).EventType}: {MoreItemInfo(n.Event as EWS.ItemEvent, ewsMoreInfoService)}";
+                sEvent = $"{n.Mailbox}: Item {(n.Event as EWS.ItemEvent).EventType}: {MoreItemInfo(ewsId, ewsMoreInfoService, (EWS.ItemEvent)n.Event)}";
             }
             else
                 sEvent = $"{n.Mailbox}: Folder {(n.Event as EWS.FolderEvent).EventType}: {MoreFolderInfo(n.Event as EWS.FolderEvent, ewsMoreInfoService)}";
@@ -448,7 +512,7 @@ namespace EWSStreamingNotificationSample
         /// <param name="e">ItemEvent containing Item Id</param>
         /// <param name="service">ExchangeService object to be used for EWS requests</param>
         /// <returns></returns>
-        private string MoreItemInfo(EWS.ItemEvent e, EWS.ExchangeService service)
+        private string MoreItemInfo(string itemId, EWS.ExchangeService service, EWS.ItemEvent e)
         {
             string sMoreInfo = "";
 
@@ -459,7 +523,7 @@ namespace EWSStreamingNotificationSample
                     // We cannot get more info for a deleted item by binding to it, so skip item details
                 }
                 else
-                    sMoreInfo += GetItemInfo(e.ItemId, service);
+                    sMoreInfo += GetItemInfo(new EWS.ItemId(itemId), service);
                 if (e.ParentFolderId != null)
                 {
                     if (!String.IsNullOrEmpty(sMoreInfo)) sMoreInfo += ", ";
@@ -569,11 +633,21 @@ namespace EWSStreamingNotificationSample
         private string GetFolderName(EWS.FolderId folderId, EWS.ExchangeService service)
         {
             // Retrieve display name of the given folder
+
+            string justFolderId = folderId.UniqueId;
+            if (justFolderId.Length<130)
+            {
+                // This is a legacy format ID, we need to convert it to the new format
+                EWS.ItemId convertedId = ConvertId(service.ImpersonatedUserId.Id, justFolderId);
+                if (convertedId != null)
+                    justFolderId = convertedId.UniqueId;
+            }
+
             try
             {
                 Utils.SetClientRequestId(service);
                 Utils.CredentialHandler.ApplyCredentialsToExchangeService(service);
-                EWS.Folder oFolder = EWS.Folder.Bind(service, folderId, new EWS.PropertySet(EWS.FolderSchema.DisplayName));
+                EWS.Folder oFolder = EWS.Folder.Bind(service, new EWS.FolderId(justFolderId), new EWS.PropertySet(EWS.FolderSchema.DisplayName));
                 return oFolder.DisplayName;
             }
             catch (Exception ex)
@@ -862,9 +936,15 @@ namespace EWSStreamingNotificationSample
                 }
                 catch { }
                 sTracker.Reset();
-                sTracker.Subscribe(selectedEvents, selectedFolders, sTracker.AnchorMailbox);
-                sTracker.Connection.AddSubscription(sTracker);
+                // If resubscribe here fails, we add this subscription to the full rebuild list.
+                // Another options (not implemented) would be to retry a couple more times (at suitable intevals)
+                // with just resubscribe, and move to fatal failure after that.
+                if (sTracker.Subscribe(selectedEvents, selectedFolders, sTracker.AnchorMailbox))
+                    sTracker.Connection.AddSubscription(sTracker);
+                else
+                    _subscriptionsToRebuild.Add(_subscriptionsInError[0]);
                 _subscriptionsInError.RemoveAt(0);
+
             }
             UpdateStats();
 
@@ -921,13 +1001,16 @@ namespace EWSStreamingNotificationSample
                     ConnectionTracker cTracker = null;
                     if (Utils.Connections.ContainsKey(sTracker.GroupName))
                     {
-                        if (Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection.CurrentSubscriptions.Count() > numericUpDownMaxMailboxesInGroup.Value)
+                        if (Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection != null)
                         {
-                            int subGroups = 2;
-                            while (Utils.Connections.ContainsKey(sTracker.GroupName) && Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection.CurrentSubscriptions.Count() > numericUpDownMaxMailboxesInGroup.Value)
+                            if (Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection.CurrentSubscriptions.Count() > numericUpDownMaxMailboxesInGroup.Value)
                             {
-                                sTracker.GroupName = $"{sTracker.GroupingInformation}{sTracker.EwsUrl}-{subGroups}";
-                                subGroups++;
+                                int subGroups = 2;
+                                while (Utils.Connections.ContainsKey(sTracker.GroupName) && Utils.Connections[sTracker.GroupName].StreamingSubscriptionConnection.CurrentSubscriptions.Count() > numericUpDownMaxMailboxesInGroup.Value)
+                                {
+                                    sTracker.GroupName = $"{sTracker.GroupingInformation}{sTracker.EwsUrl}-{subGroups}";
+                                    subGroups++;
+                                }
                             }
                         }
                         if (Utils.Connections.ContainsKey(sTracker.GroupName))
