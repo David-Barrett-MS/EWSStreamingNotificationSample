@@ -648,7 +648,7 @@ namespace EWSStreamingNotificationSample
             // Retrieve display name of the given folder
 
             string justFolderId = folderId.UniqueId;
-            if (justFolderId.Length<130)
+            if (IsLegacyId(justFolderId))
             {
                 // This is a legacy format ID, we need to convert it to the new format
                 EWS.ItemId convertedId = ConvertId(service.ImpersonatedUserId.Id, justFolderId);
