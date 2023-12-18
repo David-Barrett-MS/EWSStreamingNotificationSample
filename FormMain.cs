@@ -389,6 +389,19 @@ namespace EWSStreamingNotificationSample
         }
 
         /// <summary>
+        /// Checks the format of the Id to determine if it is in legacy format
+        /// </summary>
+        /// <param name="ewsId"></param>
+        /// <returns>True if Id is EwsLegacyId, False otherwise</returns>
+        bool IsLegacyId(string ewsId)
+        {
+            // The first byte of the Id defines the compression type
+            // Legacy Ids were compressed, in which case the first byte will be 0x01
+            byte[] idBytes = Convert.FromBase64String(ewsId);
+            return (idBytes[0]==1);
+        }
+
+        /// <summary>
         /// Process the received EWS notification
         /// </summary>
         /// <param name="e"></param>
@@ -408,7 +421,7 @@ namespace EWSStreamingNotificationSample
                 _itemNotificationsReceived++;
                 if (!checkBoxShowItemEvents.Checked) return; // We're ignoring item events
                 sEvent += "Item " + (e as EWS.ItemEvent).EventType.ToString() + ": ";
-                if ((e as EWS.ItemEvent).ItemId.UniqueId.Length < 130)
+                if (IsLegacyId((e as EWS.ItemEvent).ItemId.UniqueId))
                 {
                     // This is a legacy format ID, we need to convert it to the new format
                     correctedId = ConvertId(sMailbox, (e as EWS.ItemEvent).ItemId.UniqueId).UniqueId;
@@ -422,7 +435,7 @@ namespace EWSStreamingNotificationSample
                 _folderNotificationsReceived++;
                 if (!checkBoxShowFolderEvents.Checked) return; // We're ignoring folder events
                 sEvent += "Folder " + (e as EWS.FolderEvent).EventType.ToString() + ": ";
-                if ((e as EWS.FolderEvent).FolderId.UniqueId.Length < 130)
+                if (IsLegacyId((e as EWS.FolderEvent).FolderId.UniqueId))
                 {
                     // This is a legacy format ID, we need to convert it to the new format
                     correctedId = ConvertId(sMailbox, (e as EWS.FolderEvent).FolderId.UniqueId).UniqueId;
