@@ -110,7 +110,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Identity.Client">
-      <Version>4.48.1</Version>
+      <Version>4.65.0</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
