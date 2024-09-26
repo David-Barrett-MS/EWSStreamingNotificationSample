@@ -360,7 +360,7 @@ namespace EWSStreamingNotificationSample
         /// <param name="mailbox"></param>
         /// <param name="itemId"></param>
         /// <returns></returns>
-        EWS.ItemId ConvertId(string mailbox, string ewsLegacyId)
+        EWS.ItemId? ConvertId(string mailbox, string ewsLegacyId)
         {
             string legacyCacheKey = $"{mailbox}{ewsLegacyId}";
             if (_convertIdCache.ContainsKey(legacyCacheKey))
@@ -420,12 +420,17 @@ namespace EWSStreamingNotificationSample
             {
                 _itemNotificationsReceived++;
                 if (!checkBoxShowItemEvents.Checked) return; // We're ignoring item events
+                correctedId = (e as EWS.ItemEvent).ItemId.UniqueId;
                 sEvent += "Item " + (e as EWS.ItemEvent).EventType.ToString() + ": ";
                 if (IsLegacyId((e as EWS.ItemEvent).ItemId.UniqueId))
                 {
                     // This is a legacy format ID, we need to convert it to the new format
-                    correctedId = ConvertId(sMailbox, (e as EWS.ItemEvent).ItemId.UniqueId).UniqueId;
-                    sEvent += " (legacyId converted)";
+                    EWS.ItemId? convertedId = ConvertId(sMailbox, (e as EWS.ItemEvent).ItemId.UniqueId);
+                    if (convertedId != null)
+                    {
+                        correctedId = convertedId.UniqueId;
+                        sEvent += " (legacyId converted)";
+                    }
                     if (checkBoxQueryMore.Checked)
                         _logger.Log(sEvent);
                 }
@@ -434,12 +439,17 @@ namespace EWSStreamingNotificationSample
             {
                 _folderNotificationsReceived++;
                 if (!checkBoxShowFolderEvents.Checked) return; // We're ignoring folder events
+                correctedId = (e as EWS.FolderEvent).FolderId.UniqueId;
                 sEvent += "Folder " + (e as EWS.FolderEvent).EventType.ToString() + ": ";
                 if (IsLegacyId((e as EWS.FolderEvent).FolderId.UniqueId))
                 {
                     // This is a legacy format ID, we need to convert it to the new format
-                    correctedId = ConvertId(sMailbox, (e as EWS.FolderEvent).FolderId.UniqueId).UniqueId;
-                    sEvent += " (legacyId converted)";
+                    EWS.ItemId? convertedId = ConvertId(sMailbox, (e as EWS.FolderEvent).FolderId.UniqueId);
+                    if (convertedId != null)
+                    {
+                        correctedId = convertedId.UniqueId;
+                        sEvent += " (legacyId converted)";
+                    }
                     if (checkBoxQueryMore.Checked)
                         _logger.Log(sEvent);
                 }
@@ -647,20 +657,20 @@ namespace EWSStreamingNotificationSample
         {
             // Retrieve display name of the given folder
 
-            string justFolderId = folderId.UniqueId;
-            if (IsLegacyId(justFolderId))
+            string folderUniqueId = folderId.UniqueId;
+            if (IsLegacyId(folderUniqueId))
             {
                 // This is a legacy format ID, we need to convert it to the new format
-                EWS.ItemId convertedId = ConvertId(service.ImpersonatedUserId.Id, justFolderId);
+                EWS.ItemId convertedId = ConvertId(service.ImpersonatedUserId.Id, folderUniqueId);
                 if (convertedId != null)
-                    justFolderId = convertedId.UniqueId;
+                    folderUniqueId = convertedId.UniqueId;
             }
 
             try
             {
                 Utils.SetClientRequestId(service);
                 Utils.CredentialHandler.ApplyCredentialsToExchangeService(service);
-                EWS.Folder oFolder = EWS.Folder.Bind(service, new EWS.FolderId(justFolderId), new EWS.PropertySet(EWS.FolderSchema.DisplayName));
+                EWS.Folder oFolder = EWS.Folder.Bind(service, new EWS.FolderId(folderUniqueId), new EWS.PropertySet(EWS.FolderSchema.DisplayName));
                 return oFolder.DisplayName;
             }
             catch (Exception ex)
